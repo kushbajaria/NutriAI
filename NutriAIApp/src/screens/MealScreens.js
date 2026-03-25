@@ -4,21 +4,97 @@ import {
   ScrollView, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING } from '../constants/theme';
+import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { RECIPES } from '../constants/data';
 import { useApp } from '../context/AppContext';
-import { ScreenHeader, Badge, SectionHeader, PillButton } from '../components/UI';
+import { Badge, SectionHeader, GlowDot } from '../components/UI';
 
-// ── MEALS LIST ────────────────────────────────────────────────────
+// ── MACRO BAR ROW ──────────────────────────────────────────────────
+function MacroBar({ label, value, max, color }) {
+  const pct = Math.min(100, (value / max) * 100);
+  return (
+    <View style={s.macroBarRow}>
+      <Text style={s.macroBarLabel}>{label}</Text>
+      <View style={s.macroBarTrack}>
+        <View style={[s.macroBarFill, { width: `${pct}%`, backgroundColor: color }]} />
+      </View>
+      <Text style={[s.macroBarVal, { color }]}>{value}g</Text>
+    </View>
+  );
+}
+
+// ── RECIPE CARD ────────────────────────────────────────────────────
+function RecipeCard({ recipe: r, onPress }) {
+  return (
+    <TouchableOpacity style={s.recipeCard} onPress={onPress} activeOpacity={0.8}>
+      {/* Emoji + difficulty badge */}
+      <View style={s.cardHeader}>
+        <View style={s.emojiWrap}>
+          <Text style={s.emoji}>{r.emoji}</Text>
+        </View>
+        <View style={s.cardHeaderRight}>
+          <Badge label={r.tag} color={C.lime} />
+          <View style={s.diffRow}>
+            <Text style={s.diffText}>{r.diff}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Name + meta */}
+      <Text style={s.recipeName}>{r.name}</Text>
+      <View style={s.metaRow}>
+        <View style={s.metaChip}>
+          <Text style={s.metaChipText}>🔥 {r.cal} cal</Text>
+        </View>
+        <View style={s.metaChip}>
+          <Text style={s.metaChipText}>💪 {r.protein}g prot</Text>
+        </View>
+        <View style={s.metaChip}>
+          <Text style={s.metaChipText}>⏱ {r.prepTime + r.cookTime}m</Text>
+        </View>
+      </View>
+
+      {/* Macro bars */}
+      <View style={s.macroSection}>
+        <MacroBar label="P" value={r.protein} max={60}  color={C.protein} />
+        <MacroBar label="C" value={r.carbs}   max={100} color={C.carbs}   />
+        <MacroBar label="F" value={r.fat}     max={40}  color={C.fat}     />
+      </View>
+
+      {/* Footer */}
+      <View style={s.cardFooter}>
+        <Text style={s.footerServings}>{r.servings} serving{r.servings !== 1 ? 's' : ''}</Text>
+        <View style={s.viewBtn}>
+          <Text style={s.viewBtnText}>View Recipe →</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── MEALS LIST ─────────────────────────────────────────────────────
 export function MealsScreen({ navigation }) {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={C.black} />
+
+      {/* Header */}
       <View style={s.header}>
         <View>
-          <Text style={s.headerEyebrow}>AI GENERATED</Text>
+          <View style={s.eyebrowRow}>
+            <GlowDot size={6} />
+            <Text style={s.eyebrow}>AI GENERATED</Text>
+          </View>
           <Text style={s.headerTitle}>Meal Planner</Text>
         </View>
+        <View style={s.countBadge}>
+          <Text style={s.countText}>{RECIPES.length} recipes</Text>
+        </View>
+      </View>
+
+      {/* Subtitle */}
+      <View style={s.subtitleRow}>
+        <Text style={s.subtitle}>Based on your pantry &amp; goal</Text>
       </View>
 
       <ScrollView
@@ -26,71 +102,23 @@ export function MealsScreen({ navigation }) {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={s.introText}>Based on your pantry & goal</Text>
-
+        <SectionHeader title="RECOMMENDED FOR YOU" />
         {RECIPES.map(r => (
-          <TouchableOpacity
+          <RecipeCard
             key={r.id}
-            style={s.recipeCard}
+            recipe={r}
             onPress={() => navigation.navigate('Recipe', { recipe: r })}
-            activeOpacity={0.8}
-          >
-            {/* Left emoji block */}
-            <View style={s.emojiBlock}>
-              <Text style={s.emoji}>{r.emoji}</Text>
-            </View>
-
-            {/* Content */}
-            <View style={s.content}>
-              <View style={s.topRow}>
-                <View style={s.tagWrap}>
-                  <Text style={s.tagText}>{r.tag}</Text>
-                </View>
-                <Text style={s.diff}>{r.diff}</Text>
-              </View>
-
-              <Text style={s.name}>{r.name}</Text>
-
-              <View style={s.metaRow}>
-                <Text style={s.metaItem}>🔥 {r.cal} cal</Text>
-                <Text style={s.metaItem}>💪 {r.protein}g</Text>
-                <Text style={s.metaItem}>⏱ {r.prepTime + r.cookTime}m</Text>
-              </View>
-
-              {/* Macro bars */}
-              <View style={s.macroBars}>
-                {[
-                  { val: r.protein, max: 60,  color: C.protein, label: 'P' },
-                  { val: r.carbs,   max: 100, color: C.carbs,   label: 'C' },
-                  { val: r.fat,     max: 40,  color: C.fat,     label: 'F' },
-                ].map(m => (
-                  <View key={m.label} style={s.macroRow}>
-                    <Text style={s.macroLabel}>{m.label}</Text>
-                    <View style={s.macroTrack}>
-                      <View style={[
-                        s.macroFill,
-                        { width: `${Math.min(100, (m.val / m.max) * 100)}%`, backgroundColor: m.color }
-                      ]} />
-                    </View>
-                    <Text style={s.macroVal}>{m.val}g</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <Text style={s.arrow}>→</Text>
-          </TouchableOpacity>
+          />
         ))}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ── RECIPE DETAIL ─────────────────────────────────────────────────
+// ── RECIPE DETAIL ──────────────────────────────────────────────────
 export function RecipeScreen({ navigation, route }) {
   const { logMeal } = useApp();
 
-  // Safety check — if no recipe passed, go back
   if (!route?.params?.recipe) {
     return (
       <SafeAreaView style={rs.safe} edges={['top']}>
@@ -105,55 +133,42 @@ export function RecipeScreen({ navigation, route }) {
   }
 
   const r = route.params.recipe;
-
-  const handleLog = () => {
-    logMeal(r);
-    navigation.navigate('Main');
-  };
+  const handleLog = () => { logMeal(r); navigation.navigate('Main'); };
 
   return (
     <SafeAreaView style={rs.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={C.black} />
 
-      {/* Header */}
-      <View style={rs.header}>
-        <TouchableOpacity
-          style={rs.backBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
+      {/* Nav bar */}
+      <View style={rs.navbar}>
+        <TouchableOpacity style={rs.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Text style={rs.backBtnText}>←</Text>
         </TouchableOpacity>
-        <Text style={rs.headerTitle} numberOfLines={1}>{r.name}</Text>
+        <Text style={rs.navTitle} numberOfLines={1}>{r.name}</Text>
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
-        {/* Hero block */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+
+        {/* Hero */}
         <View style={rs.hero}>
           <View style={rs.heroEmoji}>
             <Text style={rs.heroEmojiText}>{r.emoji}</Text>
           </View>
           <View style={rs.heroInfo}>
-            <View style={rs.heroBadge}>
-              <Text style={rs.heroBadgeText}>{r.tag}</Text>
-            </View>
+            <Badge label={r.tag} color={C.lime} />
             <Text style={rs.heroTitle}>{r.name}</Text>
-            <View style={rs.heroChips}>
-              <View style={rs.chip}><Text style={rs.chipText}>⏱ {r.prepTime}m prep</Text></View>
-              <View style={rs.chip}><Text style={rs.chipText}>🔥 {r.cookTime}m cook</Text></View>
-              <View style={rs.chip}><Text style={rs.chipText}>🍽 {r.servings} serving</Text></View>
-              <View style={rs.chip}><Text style={rs.chipText}>{r.diff}</Text></View>
+            <View style={rs.chipRow}>
+              {[`⏱ ${r.prepTime}m prep`, `🔥 ${r.cookTime}m cook`, `🍽 ${r.servings} srv`, r.diff].map(c => (
+                <View key={c} style={rs.chip}><Text style={rs.chipText}>{c}</Text></View>
+              ))}
             </View>
           </View>
         </View>
 
         <View style={rs.body}>
 
-          {/* Nutrition grid */}
+          {/* Nutrition */}
           <Text style={rs.sectionLabel}>NUTRITION</Text>
           <View style={rs.nutriGrid}>
             {[
@@ -162,7 +177,7 @@ export function RecipeScreen({ navigation, route }) {
               { val: r.carbs,   unit: 'g', label: 'Carbs',    color: C.carbs   },
               { val: r.fat,     unit: 'g', label: 'Fat',      color: C.fat     },
             ].map(n => (
-              <View key={n.label} style={rs.nutriCard}>
+              <View key={n.label} style={[rs.nutriCard, { borderColor: n.color + '30', backgroundColor: n.color + '0C' }]}>
                 <Text style={[rs.nutriVal, { color: n.color }]}>
                   {n.val}<Text style={rs.nutriUnit}>{n.unit}</Text>
                 </Text>
@@ -197,20 +212,12 @@ export function RecipeScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      {/* Bottom action bar */}
+      {/* Bottom action */}
       <View style={rs.actionBar}>
-        <TouchableOpacity
-          style={rs.ghostBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={rs.ghostBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
           <Text style={rs.ghostBtnText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={rs.logBtn}
-          onPress={handleLog}
-          activeOpacity={0.85}
-        >
+        <TouchableOpacity style={rs.logBtn} onPress={handleLog} activeOpacity={0.85}>
           <Text style={rs.logBtnText}>Log This Meal ✓</Text>
         </TouchableOpacity>
       </View>
@@ -218,217 +225,115 @@ export function RecipeScreen({ navigation, route }) {
   );
 }
 
-// ── STYLES: MEALS ────────────────────────────────────────────────
+// ── STYLES: MEALS ──────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe:   { flex: 1, backgroundColor: C.black },
   header: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.md,
+    borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  headerEyebrow: {
-    fontSize: 10, fontWeight: '700', color: C.lime,
-    letterSpacing: 2, marginBottom: 2,
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  eyebrow:    { fontSize: 9, fontWeight: '700', color: C.lime, letterSpacing: 2 },
+  headerTitle:{ fontSize: 26, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
+  countBadge: {
+    backgroundColor: C.surface2, borderRadius: RADIUS.full,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: C.border, marginTop: 4,
   },
-  headerTitle: {
-    fontSize: 24, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5,
-  },
-  scroll: { flex: 1 },
+  countText: { fontSize: 12, fontWeight: '700', color: C.textSecondary },
+  subtitleRow: { paddingHorizontal: SPACING.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
+  subtitle:    { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
+  scroll:        { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
-  introText: {
-    fontSize: 13, color: C.textSecondary,
-    marginBottom: SPACING.md, fontWeight: '500',
-  },
+
+  // Recipe card
   recipeCard: {
-    flexDirection: 'row',
-    backgroundColor: C.surface1,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.md,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: C.border,
-    gap: 12,
-    alignItems: 'flex-start',
+    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
+    padding: SPACING.md, marginBottom: 14,
+    borderWidth: 1, borderColor: C.border,
+    gap: 10,
   },
-  emojiBlock: {
-    width: 56, height: 56,
-    backgroundColor: C.surface3,
-    borderRadius: RADIUS.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  emoji: { fontSize: 30 },
-  content: { flex: 1, gap: 5 },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  tagWrap: {
-    backgroundColor: 'rgba(168,255,62,0.12)',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: 'rgba(168,255,62,0.25)',
-  },
-  tagText: { fontSize: 10, fontWeight: '700', color: C.lime, letterSpacing: 0.3 },
-  diff: { fontSize: 11, color: C.textTertiary, fontWeight: '600' },
-  name: {
-    fontSize: 16, fontWeight: '800',
-    color: C.textPrimary, letterSpacing: -0.3,
-  },
-  metaRow: { flexDirection: 'row', gap: 10 },
-  metaItem: { fontSize: 12, color: C.textSecondary, fontWeight: '500' },
-  macroBars: { gap: 4, marginTop: 2 },
-  macroRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  macroLabel: { fontSize: 9, fontWeight: '700', color: C.textTertiary, width: 10 },
-  macroTrack: {
-    flex: 1, height: 3,
-    backgroundColor: C.surface3,
-    borderRadius: 2, overflow: 'hidden',
-  },
-  macroFill: { height: 3, borderRadius: 2 },
-  macroVal: {
-    fontSize: 10, color: C.textTertiary,
-    fontWeight: '600', width: 28, textAlign: 'right',
-  },
-  arrow: { fontSize: 16, color: C.textTertiary, alignSelf: 'center' },
+  cardHeader:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  emojiWrap:       { width: 64, height: 64, backgroundColor: C.surface3, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  emoji:           { fontSize: 34 },
+  cardHeaderRight: { flex: 1, gap: 6, paddingTop: 2 },
+  diffRow:         { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  diffText:        { fontSize: 11, color: C.textTertiary, fontWeight: '600' },
+  recipeName:      { fontSize: 18, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.4 },
+  metaRow:         { flexDirection: 'row', gap: 6 },
+  metaChip:        { backgroundColor: C.surface2, borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: C.border },
+  metaChipText:    { fontSize: 11, color: C.textSecondary, fontWeight: '600' },
+  macroSection:    { gap: 5, paddingTop: 2 },
+  macroBarRow:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  macroBarLabel:   { fontSize: 9, fontWeight: '700', color: C.textTertiary, width: 12 },
+  macroBarTrack:   { flex: 1, height: 4, backgroundColor: C.surface3, borderRadius: 2, overflow: 'hidden' },
+  macroBarFill:    { height: 4, borderRadius: 2 },
+  macroBarVal:     { fontSize: 10, fontWeight: '700', width: 30, textAlign: 'right' },
+  cardFooter:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 10 },
+  footerServings:  { fontSize: 12, color: C.textTertiary, fontWeight: '500' },
+  viewBtn:         { flexDirection: 'row', alignItems: 'center' },
+  viewBtnText:     { fontSize: 13, color: C.lime, fontWeight: '700' },
 });
 
-// ── STYLES: RECIPE ────────────────────────────────────────────────
+// ── STYLES: RECIPE ──────────────────────────────────────────────────
 const rs = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.black },
-
-  // error state
   errorWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
   errorText: { fontSize: 16, color: C.textSecondary },
-  errorBtn: {
-    backgroundColor: C.lime, borderRadius: RADIUS.full,
-    paddingHorizontal: 24, paddingVertical: 12,
-  },
+  errorBtn:  { backgroundColor: C.lime, borderRadius: RADIUS.full, paddingHorizontal: 24, paddingVertical: 12 },
   errorBtnText: { fontSize: 14, fontWeight: '700', color: C.textInverse },
 
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.md,
+  navbar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.surface2,
-    borderWidth: 1, borderColor: C.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  backBtn:     { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 18, color: C.lime, marginTop: -1 },
-  headerTitle: {
-    fontSize: 17, fontWeight: '700',
-    color: C.textPrimary, flex: 1,
-    textAlign: 'center', marginHorizontal: 8,
-  },
+  navTitle:    { fontSize: 16, fontWeight: '700', color: C.textPrimary, flex: 1, textAlign: 'center', marginHorizontal: 8 },
 
   hero: {
-    flexDirection: 'row', gap: 14,
+    flexDirection: 'row', gap: 16,
     padding: SPACING.md,
     backgroundColor: C.surface1,
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  heroEmoji: {
-    width: 80, height: 80,
-    backgroundColor: C.surface3,
-    borderRadius: RADIUS.lg,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
-  heroEmojiText: { fontSize: 40 },
-  heroInfo: { flex: 1, gap: 6, justifyContent: 'center' },
-  heroBadge: {
-    backgroundColor: 'rgba(168,255,62,0.12)',
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 10, paddingVertical: 4,
-    alignSelf: 'flex-start',
-    borderWidth: 1, borderColor: 'rgba(168,255,62,0.25)',
-  },
-  heroBadgeText: { fontSize: 10, fontWeight: '700', color: C.lime, letterSpacing: 0.4 },
-  heroTitle: {
-    fontSize: 18, fontWeight: '800',
-    color: C.textPrimary, letterSpacing: -0.4,
-  },
-  heroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: {
-    backgroundColor: C.surface3,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 10, paddingVertical: 4,
-  },
-  chipText: { fontSize: 11, color: C.textSecondary, fontWeight: '600' },
+  heroEmoji:     { width: 88, height: 88, backgroundColor: C.surface3, borderRadius: RADIUS.xl, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  heroEmojiText: { fontSize: 46 },
+  heroInfo:      { flex: 1, gap: 8, justifyContent: 'center' },
+  heroTitle:     { fontSize: 20, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.4 },
+  chipRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip:          { backgroundColor: C.surface3, borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 5 },
+  chipText:      { fontSize: 11, color: C.textSecondary, fontWeight: '600' },
 
-  body: { padding: SPACING.md },
-  sectionLabel: {
-    fontSize: 10, fontWeight: '700',
-    color: C.textTertiary, letterSpacing: 1.2,
-    marginBottom: 10, marginTop: 4,
-  },
+  body:         { padding: SPACING.md },
+  sectionLabel: { fontSize: 9, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.8, marginBottom: 10, marginTop: 4 },
 
   nutriGrid: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg },
-  nutriCard: {
-    flex: 1, backgroundColor: C.surface1,
-    borderRadius: RADIUS.md, padding: 12,
-    alignItems: 'center',
-    borderWidth: 1, borderColor: C.border,
-  },
-  nutriVal: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  nutriCard: { flex: 1, borderRadius: RADIUS.md, padding: 12, alignItems: 'center', borderWidth: 1 },
+  nutriVal:  { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
   nutriUnit: { fontSize: 12, fontWeight: '700' },
-  nutriLabel: { fontSize: 10, color: C.textTertiary, fontWeight: '600', marginTop: 3 },
+  nutriLabel:{ fontSize: 10, color: C.textTertiary, fontWeight: '600', marginTop: 3 },
 
-  ingRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: SPACING.lg },
-  ingChip: {
-    backgroundColor: C.surface2,
-    borderWidth: 1, borderColor: C.borderHi,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 14, paddingVertical: 7,
-  },
+  ingRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: SPACING.lg },
+  ingChip: { backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 8 },
   ingText: { fontSize: 13, color: C.textPrimary, fontWeight: '500' },
 
-  steps: { gap: 10, marginBottom: SPACING.lg },
-  step: {
-    flexDirection: 'row', gap: 12,
-    backgroundColor: C.surface1,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    borderWidth: 1, borderColor: C.border,
-  },
-  stepNum: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: C.lime,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
+  steps:       { gap: 10, marginBottom: SPACING.lg },
+  step:        { flexDirection: 'row', gap: 14, backgroundColor: C.surface1, borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, borderColor: C.border },
+  stepNum:     { width: 28, height: 28, borderRadius: 14, backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center', flexShrink: 0, ...SHADOW.lime },
   stepNumText: { fontSize: 12, fontWeight: '900', color: C.textInverse },
-  stepText: {
-    fontSize: 14, color: C.textSecondary,
-    lineHeight: 22, flex: 1, paddingTop: 3,
-  },
+  stepText:    { fontSize: 14, color: C.textSecondary, lineHeight: 22, flex: 1, paddingTop: 3 },
 
   actionBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', gap: 10,
     padding: SPACING.md, paddingBottom: 32,
-    backgroundColor: C.black,
-    borderTopWidth: 1, borderTopColor: C.border,
+    backgroundColor: C.black, borderTopWidth: 1, borderTopColor: C.border,
   },
-  ghostBtn: {
-    width: 80, height: 52,
-    borderRadius: RADIUS.full,
-    borderWidth: 1, borderColor: C.borderHi,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  ghostBtn:     { width: 80, height: 52, borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
   ghostBtnText: { fontSize: 14, color: C.textSecondary, fontWeight: '600' },
-  logBtn: {
-    flex: 1, height: 52,
-    backgroundColor: C.lime,
-    borderRadius: RADIUS.full,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  logBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
+  logBtn:       { flex: 1, height: 52, backgroundColor: C.lime, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center', ...SHADOW.lime },
+  logBtnText:   { fontSize: 15, fontWeight: '800', color: C.textInverse },
 });

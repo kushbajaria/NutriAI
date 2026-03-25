@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'; // needed for JSX
 import { View, Text, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -6,7 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { AppProvider, useApp } from './src/context/AppContext';
-import { C } from './src/constants/theme';
+import { C, SHADOW } from './src/constants/theme';
 import { Toast } from './src/components/UI';
 
 import AuthScreen      from './src/screens/AuthScreen';
@@ -21,11 +21,18 @@ const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
 
 const TABS = [
-  { name: 'Home',    icon: '⌂', component: DashboardScreen },
-  { name: 'Pantry',  icon: '◫', component: PantryScreen    },
-  { name: 'Meals',   icon: '⊞', component: MealsScreen     },
-  { name: 'Workout', icon: '◉', component: WorkoutScreen   },
+  { name: 'Home',    label: 'Home',    icon: '⌂',  iconOn: '⌂'  },
+  { name: 'Pantry',  label: 'Pantry',  icon: '◫',  iconOn: '◫'  },
+  { name: 'Meals',   label: 'Meals',   icon: '⊞',  iconOn: '⊞'  },
+  { name: 'Workout', label: 'Workout', icon: '◎',  iconOn: '◎'  },
 ];
+
+const COMPONENTS = {
+  Home: DashboardScreen,
+  Pantry: PantryScreen,
+  Meals: MealsScreen,
+  Workout: WorkoutScreen,
+};
 
 function TabIcon({ icon, label, focused }) {
   return (
@@ -40,13 +47,23 @@ function TabIcon({ icon, label, focused }) {
 
 function MainTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false, tabBarShowLabel: false, tabBarStyle: ts.bar }}>
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarStyle: ts.bar,
+      }}
+    >
       {TABS.map(t => (
         <Tab.Screen
           key={t.name}
           name={t.name}
-          component={t.component}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon icon={t.icon} label={t.name} focused={focused} /> }}
+          component={COMPONENTS[t.name]}
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon icon={focused ? t.iconOn : t.icon} label={t.label} focused={focused} />
+            ),
+          }}
         />
       ))}
     </Tab.Navigator>
@@ -83,12 +100,28 @@ export default function App() {
 }
 
 const ts = StyleSheet.create({
-  bar: { backgroundColor: C.surface0, borderTopWidth: 1, borderTopColor: C.border, height: 72, paddingBottom: 8, paddingTop: 8 },
+  bar: {
+    backgroundColor: C.surface0,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    height: 76,
+    paddingBottom: 10,
+    paddingTop: 6,
+    ...SHADOW.md,
+  },
   item: { alignItems: 'center', gap: 3 },
-  iconWrap: { width: 36, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  iconWrapOn: { backgroundColor: C.limeGlow },
-  icon: { fontSize: 18, color: C.textTertiary },
-  iconOn: { color: C.lime },
-  label: { fontSize: 10, color: C.textTertiary, fontWeight: '600' },
-  labelOn: { color: C.lime },
+  iconWrap: {
+    width: 44, height: 30,
+    borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  iconWrapOn: {
+    backgroundColor: C.limeGlow,
+    borderWidth: 1,
+    borderColor: C.lime + '30',
+  },
+  icon:    { fontSize: 18, color: C.textMuted },
+  iconOn:  { fontSize: 18, color: C.lime },
+  label:   { fontSize: 10, color: C.textTertiary, fontWeight: '600', letterSpacing: 0.3 },
+  labelOn: { color: C.lime, fontWeight: '700' },
 });
