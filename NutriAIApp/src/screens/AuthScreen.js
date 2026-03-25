@@ -159,15 +159,6 @@ export default function AuthScreen({ navigation }) {
             <Text style={s.googleText}>Continue with Google</Text>
           </TouchableOpacity>
 
-          {/* Feature pills */}
-          <View style={s.featureRow}>
-            {['🍽️ AI Meal Plans', '💪 Workouts', '📊 Macro Tracking'].map(f => (
-              <View key={f} style={s.featurePill}>
-                <Text style={s.featurePillText}>{f}</Text>
-              </View>
-            ))}
-          </View>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
