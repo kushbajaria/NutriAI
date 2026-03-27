@@ -13,8 +13,11 @@ const TYPES = Object.keys(WORKOUTS);
 export default function WorkoutScreen() {
   const [type, setType]         = useState('Full Body');
   const [duration, setDuration] = useState('30 min');
-  const { totalCals, goal, showToast } = useApp();
-  const plan = WORKOUTS[type];
+  const [completed, setCompleted] = useState(false);
+  const { totalCals, goal, showToast, recordActivity } = useApp();
+  const plan      = WORKOUTS[type];
+  const exercises = plan.byDuration[duration];
+  const calBurn   = plan.calBurn[duration];
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -29,7 +32,7 @@ export default function WorkoutScreen() {
           <Text style={s.headerTitle}>Workout</Text>
         </View>
         <View style={s.calBadge}>
-          <Text style={s.calBadgeVal}>~300</Text>
+          <Text style={s.calBadgeVal}>~{calBurn}</Text>
           <Text style={s.calBadgeLbl}>cal burn</Text>
         </View>
       </View>
@@ -46,7 +49,7 @@ export default function WorkoutScreen() {
                 <TouchableOpacity
                   key={t}
                   style={[s.typeCard, active && s.typeCardActive]}
-                  onPress={() => setType(t)}
+                  onPress={() => { setType(t); setCompleted(false); }}
                   activeOpacity={0.8}
                 >
                   <Text style={s.typeEmoji}>{WORKOUTS[t].emoji}</Text>
@@ -68,7 +71,7 @@ export default function WorkoutScreen() {
               <TouchableOpacity
                 key={d}
                 style={[s.durChip, active && s.durChipActive]}
-                onPress={() => setDuration(d)}
+                onPress={() => { setDuration(d); setCompleted(false); }}
                 activeOpacity={0.75}
               >
                 <Text style={[s.durText, active && s.durTextActive]}>{d}</Text>
@@ -85,17 +88,17 @@ export default function WorkoutScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.planTitle}>{type}</Text>
-              <Text style={s.planDuration}>{duration} · {plan.exercises.length} exercises</Text>
+              <Text style={s.planDuration}>{duration} · {exercises.length} exercises</Text>
               <Text style={s.planDesc}>{plan.desc}</Text>
             </View>
-            <Badge label="~300 cal" color={C.lime} />
+            <Badge label={`~${calBurn} cal`} color={C.lime} />
           </View>
 
           <View style={s.planDivider} />
 
           <SectionHeader title="EXERCISES" />
           <View style={s.exerciseList}>
-            {plan.exercises.map((ex, i) => (
+            {exercises.map((ex, i) => (
               <View key={ex.name} style={s.exerciseRow}>
                 <View style={s.exNum}>
                   <Text style={s.exNumText}>{i + 1}</Text>
@@ -114,11 +117,17 @@ export default function WorkoutScreen() {
 
           {/* Start button */}
           <TouchableOpacity
-            style={s.startBtn}
-            onPress={() => showToast('Workout started! 💪')}
+            style={[s.startBtn, completed && s.startBtnDone]}
+            onPress={() => {
+              if (!completed) {
+                recordActivity();
+                showToast('Workout logged! 🔥');
+                setCompleted(true);
+              }
+            }}
             activeOpacity={0.85}
           >
-            <Text style={s.startBtnText}>▶  Start Workout</Text>
+            <Text style={s.startBtnText}>{completed ? '✓  Workout Logged' : '▶  Start Workout'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -224,6 +233,7 @@ const s = StyleSheet.create({
     paddingVertical: 16, alignItems: 'center',
     ...SHADOW.lime,
   },
+  startBtnDone: { backgroundColor: C.limeDim },
   startBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
 
   // AI card

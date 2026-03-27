@@ -1,13 +1,108 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Modal, StatusBar,
+  ScrollView, Modal, StatusBar, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { DottedRing, MacroChip, SectionHeader, Badge, Card, GlowDot } from '../components/UI';
-import { RECIPES } from '../constants/data';
+
+// ── STREAK CELEBRATION OVERLAY ────────────────────────────────────
+function StreakCelebration({ count, onDone }) {
+  const fadeAnim   = useRef(new Animated.Value(0)).current;
+  const scaleAnim  = useRef(new Animated.Value(0.4)).current;
+  const particles  = useRef([...Array(10)].map(() => ({
+    x:   new Animated.Value(0),
+    y:   new Animated.Value(0),
+    op:  new Animated.Value(1),
+  }))).current;
+
+  useEffect(() => {
+    // Fade in background
+    Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
+    // Spring-in card
+    Animated.spring(scaleAnim, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }).start();
+    // Float particles
+    particles.forEach((p, i) => {
+      const angle = (i / particles.length) * Math.PI * 2;
+      Animated.parallel([
+        Animated.timing(p.x,  { toValue: Math.cos(angle) * 90, duration: 1400 + i * 60, useNativeDriver: true }),
+        Animated.timing(p.y,  { toValue: -80 - Math.random() * 80, duration: 1400 + i * 60, useNativeDriver: true }),
+        Animated.timing(p.op, { toValue: 0, duration: 1400 + i * 60, delay: 600, useNativeDriver: true }),
+      ]).start();
+    });
+    // Dismiss after 2.6s
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 0, duration: 300, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 0.7, duration: 300, useNativeDriver: true }),
+      ]).start(() => onDone());
+    }, 2600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Animated.View style={[ds.celebOverlay, { opacity: fadeAnim }]} pointerEvents="none">
+      {/* Particles */}
+      {particles.map((p, i) => (
+        <Animated.Text
+          key={i}
+          style={[ds.particle, { transform: [{ translateX: p.x }, { translateY: p.y }], opacity: p.op }]}
+        >★</Animated.Text>
+      ))}
+      {/* Center card */}
+      <Animated.View style={[ds.celebCard, { transform: [{ scale: scaleAnim }] }]}>
+        <Text style={ds.celebStar}>⭐</Text>
+        <Text style={ds.celebDayLabel}>DAY</Text>
+        <Text style={ds.celebCount}>{count}</Text>
+        <Text style={ds.celebSub}>Day Streak</Text>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// ── STREAK CARD ────────────────────────────────────────────────────
+function StreakCard({ streakData }) {
+  const today = new Date().toDateString();
+  const days  = [...Array(7)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const ds = d.toDateString();
+    const isToday   = ds === today;
+    const isEarned  = streakData.activityDates.includes(ds);
+    return { isToday, isEarned };
+  });
+
+  return (
+    <View style={ds.streakCard}>
+      {/* Left: count */}
+      <View style={ds.streakLeft}>
+        <Text style={ds.streakFire}>🔥</Text>
+        <View>
+          <Text style={ds.streakCount}>{streakData.count}</Text>
+          <Text style={ds.streakLabel}>day streak</Text>
+        </View>
+      </View>
+
+      {/* Divider */}
+      <View style={ds.streakDivider} />
+
+      {/* Right: 7-day dots */}
+      <View style={ds.streakDots}>
+        {days.map((d, i) => (
+          <View key={i} style={[
+            ds.streakDot,
+            d.isEarned  && ds.streakDotEarned,
+            d.isToday && !d.isEarned && ds.streakDotToday,
+          ]}>
+            {d.isEarned && <Text style={ds.streakDotStar}>★</Text>}
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 // ── CALORIE HERO ───────────────────────────────────────────────────
 function CalorieHero({ totalCals, totalProtein, totalCarbs, totalFat, onPress }) {
@@ -134,11 +229,16 @@ function MealDetailModal({ visible, onClose, type }) {
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
-  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user } = useApp();
-  const [modal, setModal] = useState(null);
+  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user, pantryMeals, streakData } = useApp();
+  const [modal, setModal]         = useState(null);
+  const [showCelebration, setShowCelebration] = useState(false);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   const firstName = user?.name?.split(' ')[0] || 'there';
   const initial = firstName[0]?.toUpperCase();
+
+  useEffect(() => {
+    if (streakData.earnedToday) setShowCelebration(true);
+  }, [streakData.earnedToday]);
 
   return (
     <SafeAreaView style={ds.safe} edges={['top']}>
@@ -154,6 +254,9 @@ export default function DashboardScreen({ navigation }) {
           <Text style={ds.avatarText}>{initial}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Streak bar */}
+      <StreakCard streakData={streakData} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={ds.scroll}>
 
@@ -240,7 +343,7 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Suggested meal */}
         <SectionHeader title="SUGGESTED MEAL" action="See All" onAction={() => navigation.navigate('Meals')} />
-        {RECIPES.slice(1, 2).map(r => (
+        {pantryMeals.slice(0, 1).map(r => (
           <TouchableOpacity
             key={r.id}
             style={ds.suggestCard}
@@ -264,6 +367,11 @@ export default function DashboardScreen({ navigation }) {
       </ScrollView>
 
       <MealDetailModal visible={!!modal} onClose={() => setModal(null)} type={modal} />
+
+      {/* Streak celebration */}
+      {showCelebration && (
+        <StreakCelebration count={streakData.count} onDone={() => setShowCelebration(false)} />
+      )}
     </SafeAreaView>
   );
 }
@@ -355,6 +463,53 @@ const ds = StyleSheet.create({
     backgroundColor: C.surface3, alignItems: 'center', justifyContent: 'center',
   },
   suggestArrowText: { fontSize: 14, color: C.lime, fontWeight: '700' },
+
+  // Streak card
+  streakCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.surface1, borderBottomWidth: 1, borderBottomColor: C.border,
+    paddingHorizontal: SPACING.md, paddingVertical: 12,
+  },
+  streakLeft:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  streakFire:  { fontSize: 26 },
+  streakCount: { fontSize: 28, fontWeight: '900', color: C.lime, letterSpacing: -1, lineHeight: 30 },
+  streakLabel: { fontSize: 10, fontWeight: '700', color: C.textTertiary, letterSpacing: 0.5 },
+  streakDivider: { width: 1, height: 32, backgroundColor: C.border, marginHorizontal: 16 },
+  streakDots:  { flex: 1, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'flex-end' },
+  streakDot: {
+    width: 26, height: 26, borderRadius: 13,
+    borderWidth: 1.5, borderColor: C.surface4,
+    backgroundColor: C.surface2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  streakDotEarned: {
+    backgroundColor: C.limeDeep, borderColor: C.lime,
+    ...SHADOW.lime,
+  },
+  streakDotToday: {
+    borderColor: C.lime, borderStyle: 'dashed',
+  },
+  streakDotStar: { fontSize: 11, color: C.lime },
+
+  // Celebration overlay
+  celebOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 999,
+  },
+  particle: { position: 'absolute', fontSize: 18, color: C.lime, fontWeight: '900' },
+  celebCard: {
+    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
+    borderWidth: 1, borderColor: C.lime + '40',
+    padding: SPACING.xl, alignItems: 'center', gap: 4,
+    ...SHADOW.lime,
+    minWidth: 180,
+  },
+  celebStar:     { fontSize: 52, marginBottom: 4 },
+  celebDayLabel: { fontSize: 10, fontWeight: '800', color: C.lime, letterSpacing: 3 },
+  celebCount:    { fontSize: 72, fontWeight: '900', color: C.textPrimary, letterSpacing: -3, lineHeight: 76 },
+  celebSub:      { fontSize: 15, fontWeight: '600', color: C.textSecondary },
 
   // Modal
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
