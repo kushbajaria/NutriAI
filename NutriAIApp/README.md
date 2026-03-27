@@ -1,79 +1,146 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# NutriAI
 
-# Getting Started
+A React Native nutrition and fitness companion for iOS. NutriAI generates personalised meal recommendations from your pantry, tracks your daily macros, schedules workouts, and builds consistent habits through a daily streak system.
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+---
 
-## Step 1: Start the Metro Server
+## Features
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+### Nutrition
+- **Pantry management** — add and remove ingredients; meals update automatically based on what you have
+- **Smart meal scoring** — recipes are ranked by pantry match (65%) and goal alignment (35%) so you always see meals you can actually make
+- **Macro tracking** — daily calories, protein, carbs, and fat visualised with a dotted ring chart
+- **Recipe detail** — full ingredient list with pantry status (have / missing), step-by-step instructions, prep and cook time, and nutritional breakdown
 
-To start Metro, run the following command from the _root_ of your React Native project:
+### Social & Reviews
+- **Star ratings** — rate any recipe from 1–5 stars
+- **Community reviews** — read reviews from other users and post your own
 
-```bash
-# using npm
-npm start
+### Workouts
+- **4 workout types** — Full Body, Upper Body, Lower Body, Cardio HIIT
+- **Duration-aware plans** — exercise count, sets, reps, and estimated calorie burn all scale with your chosen duration (20 / 30 / 45 / 60 min)
+- **AI insight** — contextual tip based on your calories consumed and active goal
 
-# OR using Yarn
-yarn start
+### Daily Streak
+- Earn a streak point every day you log a meal or complete a workout
+- Animated celebration overlay fires on the first activity of the day
+- 7-day dot history visible at a glance on the dashboard
+
+### Profile & Settings
+- Edit goal, dietary preference, age, height, and weight inline via bottom sheets
+- Toggle notifications on/off
+- Switch between Metric and Imperial units
+- Data & Privacy and About NutriAI info panels
+
+---
+
+## Tech Stack
+
+| Layer | Library |
+|---|---|
+| Framework | React Native 0.76.9 |
+| UI | React 18.3.1 (all components built from scratch — no UI library) |
+| Navigation | @react-navigation/native · native-stack · bottom-tabs |
+| Safe area | react-native-safe-area-context |
+| Screens | react-native-screens |
+| State | React Context API + hooks |
+| Platform | iOS (Xcode 26 / Apple Clang 21) |
+
+---
+
+## Project Structure
+
+```
+NutriAIApp/
+├── App.js                        # Root navigator (Stack: Auth → Onboard → Main)
+├── src/
+│   ├── screens/
+│   │   ├── AuthScreen.js         # Sign-in / sign-up
+│   │   ├── OnboardScreen.js      # Goal & preferences onboarding
+│   │   ├── DashboardScreen.js    # Home — macros, streak, quick access
+│   │   ├── PantryScreen.js       # Ingredient management
+│   │   ├── MealScreens.js        # Meal list + recipe detail
+│   │   ├── WorkoutScreen.js      # Workout planner
+│   │   └── ProfileScreen.js      # User profile + settings
+│   ├── components/
+│   │   └── UI.js                 # Shared components (Badge, Card, Toast, DottedRing, …)
+│   ├── constants/
+│   │   ├── theme.js              # Colors, typography, spacing, radius, shadows
+│   │   └── data.js               # Recipes, workouts, pantry defaults, mock reviews
+│   └── context/
+│       └── AppContext.js         # Global state — user, pantry, meals, streak, macros
+└── ios/
+    └── Podfile                   # CocoaPods config with C++20 + fmt patch for Xcode 26
 ```
 
-## Step 2: Start your Application
+---
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+## Getting Started
 
-### For Android
+### Prerequisites
 
-```bash
-# using npm
-npm run android
+- Node >= 18
+- Xcode 15+ (Xcode 26 supported)
+- CocoaPods
+- React Native CLI
 
-# OR using Yarn
-yarn android
-```
-
-### For iOS
+### Install
 
 ```bash
-# using npm
-npm run ios
+# Clone the repo
+git clone <repo-url>
+cd NutriAIApp
 
-# OR using Yarn
-yarn ios
+# Install JS dependencies
+npm install
+
+# Install iOS pods
+cd ios && pod install && cd ..
 ```
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+### Run
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+```bash
+# Start the Metro bundler
+npx react-native start
 
-## Step 3: Modifying your App
+# Then press i in the terminal, or hit the play button in Xcode
+```
 
-Now that you have successfully run the app, let's modify it.
+> **Xcode 26 note:** The Podfile includes a post-install hook that patches `fmt/base.h` to set `FMT_USE_CONSTEVAL 0`, which is required to build on Apple Clang 21. This is applied automatically on every `pod install`.
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+---
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+## Meal Scoring Algorithm
 
-## Congratulations! :tada:
+Each recipe receives a `combinedScore` used to rank suggestions:
 
-You've successfully run and modified your React Native App. :partying_face:
+```
+combinedScore = matchScore × 0.65 + goalScore × 0.35
+```
 
-### Now what?
+| Component | Logic |
+|---|---|
+| `matchScore` | Fraction of recipe ingredients found in the user's pantry (bidirectional substring match) |
+| `goalScore` (Lose Weight) | 1.0 if cal < 400 · 0.65 if < 550 · 0.2 otherwise |
+| `goalScore` (Build Muscle) | 1.0 if protein ≥ 40 g · 0.7 if ≥ 25 g · 0.3 otherwise |
+| `goalScore` (Boost Energy) | 1.0 if carbs ≥ 45 g · 0.65 if ≥ 25 g · 0.3 otherwise |
+| `goalScore` (Stay Healthy) | 0.7 (flat) |
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
+Meals with `matchScore ≥ 0.6` appear in the **From Your Pantry** section; the rest appear under **Discover More**.
 
-# Troubleshooting
+---
 
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+## Design System
 
-# Learn More
+All tokens live in `src/constants/theme.js`.
 
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+| Token | Value |
+|---|---|
+| Background | `#0E0E12` |
+| Accent (indigo) | `#7C8FFA` |
+| Text primary | `#F0F0F8` |
+| Text secondary | `#8888A8` |
+| Protein | `#A78BFA` (purple) |
+| Carbs | `#F5C060` (amber) |
+| Fat | `#F08050` (orange) |
