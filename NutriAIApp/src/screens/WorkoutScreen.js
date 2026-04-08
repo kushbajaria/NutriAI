@@ -14,7 +14,7 @@ export default function WorkoutScreen() {
   const [type, setType]         = useState('Full Body');
   const [duration, setDuration] = useState('30 min');
   const [completed, setCompleted] = useState(false);
-  const { totalCals, goal, showToast, recordActivity } = useApp();
+  const { totalCals, goal, showToast, logWorkout } = useApp();
   const plan      = WORKOUTS[type];
   const exercises = plan.byDuration[duration];
   const calBurn   = plan.calBurn[duration];
@@ -118,10 +118,9 @@ export default function WorkoutScreen() {
           {/* Start button */}
           <TouchableOpacity
             style={[s.startBtn, completed && s.startBtnDone]}
-            onPress={() => {
+            onPress={async () => {
               if (!completed) {
-                recordActivity();
-                showToast('Workout logged! 🔥');
+                await logWorkout({ type, duration, calBurn, exerciseCount: exercises.length });
                 setCompleted(true);
               }
             }}
@@ -132,16 +131,16 @@ export default function WorkoutScreen() {
         </View>
 
         {/* AI Insight */}
-        <View style={s.aiCard}>
-          <View style={s.aiHeader}>
+        <View style={s.insightCard}>
+          <View style={s.insightHeader}>
             <GlowDot size={7} />
-            <Text style={s.aiLabel}>AI INSIGHT</Text>
+            <Text style={s.insightLabel}>SMART INSIGHT</Text>
           </View>
-          <Text style={s.aiBody}>
+          <Text style={s.insightBody}>
             With{' '}
-            <Text style={s.aiHighlight}>{totalCals} kcal consumed</Text>
+            <Text style={s.insightHighlight}>{totalCals} kcal consumed</Text>
             {' '}today and your{' '}
-            <Text style={s.aiHighlight}>{goal?.toLowerCase()}</Text>
+            <Text style={s.insightHighlight}>{goal?.toLowerCase()}</Text>
             {' '}goal, this {type.toLowerCase()} session is optimally timed.
             Your body has adequate fuel for peak performance.
           </Text>
@@ -236,13 +235,13 @@ const s = StyleSheet.create({
   startBtnDone: { backgroundColor: C.limeDim },
   startBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
 
-  // AI card
-  aiCard: {
+  // Insight card
+  insightCard: {
     backgroundColor: C.limeGlowSm, borderRadius: RADIUS.lg,
     padding: SPACING.md, borderWidth: 1, borderColor: C.lime + '22',
   },
-  aiHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  aiLabel:     { fontSize: 9, fontWeight: '800', color: C.lime, letterSpacing: 2 },
-  aiBody:      { fontSize: 14, color: C.textSecondary, lineHeight: 23 },
-  aiHighlight: { color: C.textPrimary, fontWeight: '700' },
+  insightHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  insightLabel:     { fontSize: 9, fontWeight: '800', color: C.lime, letterSpacing: 2 },
+  insightBody:      { fontSize: 14, color: C.textSecondary, lineHeight: 23 },
+  insightHighlight: { color: C.textPrimary, fontWeight: '700' },
 });

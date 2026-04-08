@@ -2,23 +2,50 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, KeyboardAvoidingView,
-  Platform, StatusBar,
+  Platform, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING } from '../constants/theme';
 import { GOALS, DIETS } from '../constants/data';
-import { useApp } from '../context/AppContext';
-import { PillButton, ScreenHeader } from '../components/UI';
+import { useAuth } from '../context/AuthContext';
+import { createUserProfile, setPantry } from '../services/firestore';
+import { PillButton } from '../components/UI';
 
-export default function OnboardScreen({ navigation }) {
-  const [step, setStep] = useState(1);
-  const { goal, setGoal, age, setAge, height, setHeight, weight, setWeight, setDiet } = useApp();
-  const [selDiet, setSelDiet] = useState(0);
+export default function OnboardScreen() {
+  const { user, refreshProfile } = useAuth();
+
+  const [step, setStep]         = useState(1);
+  const [goal, setGoal]         = useState('Lose Weight');
+  const [age, setAge]           = useState('');
+  const [height, setHeight]     = useState('');
+  const [weight, setWeight]     = useState('');
+  const [selDiet, setSelDiet]   = useState(0);
+  const [saving, setSaving]     = useState(false);
   const totalSteps = 2;
 
-  const finish = () => {
-    setDiet(DIETS[selDiet]);
-    navigation.replace('Main');
+  const finish = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await createUserProfile(user.uid, {
+        name:   user.displayName || 'User',
+        email:  user.email || '',
+        goal,
+        diet:   DIETS[selDiet],
+        age,
+        height,
+        weight,
+        units:  'Metric',
+      });
+      // Initialize empty pantry
+      await setPantry(user.uid, []);
+      // Refresh profile in AuthContext — this triggers navigation to Main
+      await refreshProfile();
+    } catch (err) {
+      console.error('Onboard save error:', err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -103,7 +130,14 @@ export default function OnboardScreen({ navigation }) {
                   <Text style={s.backChipText}>← Back</Text>
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
-                  <PillButton label="Get Started" onPress={finish} />
+                  {saving ? (
+                    <View style={s.savingWrap}>
+                      <ActivityIndicator color={C.lime} />
+                      <Text style={s.savingText}>Setting up your profile...</Text>
+                    </View>
+                  ) : (
+                    <PillButton label="Get Started" onPress={finish} />
+                  )}
                 </View>
               </View>
             </>
@@ -146,4 +180,6 @@ const s = StyleSheet.create({
   btnRow: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: SPACING.md },
   backChip: { width: 80, height: 52, borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
   backChipText: { fontSize: 14, color: C.textSecondary, fontWeight: '600' },
+  savingWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 52 },
+  savingText: { fontSize: 14, color: C.textSecondary, fontWeight: '600' },
 });

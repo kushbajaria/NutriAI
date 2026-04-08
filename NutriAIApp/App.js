@@ -1,11 +1,12 @@
-import React from 'react'; // needed for JSX
-import { View, Text, StyleSheet, StatusBar } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { AppProvider, useApp } from './src/context/AppContext';
+import { useAuth } from './src/context/AuthContext';
 import { C, SHADOW } from './src/constants/theme';
 import { Toast } from './src/components/UI';
 
@@ -70,17 +71,45 @@ function MainTabs() {
   );
 }
 
+// Loading screen shown during Firebase auth initialization
+function SplashScreen() {
+  return (
+    <View style={ts.splash}>
+      <View style={ts.splashLogo}>
+        <Text style={ts.splashLogoText}>N</Text>
+      </View>
+      <Text style={ts.splashName}>NutriSmart</Text>
+      <ActivityIndicator color={C.lime} style={{ marginTop: 20 }} />
+    </View>
+  );
+}
+
 function RootNav() {
   const { toast } = useApp();
+  const { user, initializing, isOnboarded } = useAuth();
+
+  if (initializing) {
+    return <SplashScreen />;
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: C.black }}>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-          <Stack.Screen name="Auth"    component={AuthScreen}    />
-          <Stack.Screen name="Onboard" component={OnboardScreen} />
-          <Stack.Screen name="Main"    component={MainTabs}      />
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="Recipe"  component={RecipeScreen}  options={{ animation: 'slide_from_bottom' }} />
+          {!user ? (
+            // Not authenticated — show auth screen
+            <Stack.Screen name="Auth" component={AuthScreen} />
+          ) : !isOnboarded ? (
+            // Authenticated but no profile — show onboarding
+            <Stack.Screen name="Onboard" component={OnboardScreen} />
+          ) : (
+            // Fully set up — show main app
+            <>
+              <Stack.Screen name="Main"    component={MainTabs}      />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen name="Recipe"  component={RecipeScreen}  options={{ animation: 'slide_from_bottom' }} />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
       {toast && <Toast message={toast} />}
@@ -124,4 +153,18 @@ const ts = StyleSheet.create({
   iconOn:  { fontSize: 18, color: C.lime },
   label:   { fontSize: 10, color: C.textTertiary, fontWeight: '600', letterSpacing: 0.3 },
   labelOn: { color: C.lime, fontWeight: '700' },
+
+  // Splash screen
+  splash: {
+    flex: 1, backgroundColor: C.black,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  splashLogo: {
+    width: 80, height: 80, borderRadius: 18,
+    backgroundColor: C.lime,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 16, ...SHADOW.lime,
+  },
+  splashLogoText: { fontSize: 44, fontWeight: '900', color: C.textInverse },
+  splashName: { fontSize: 28, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
 });

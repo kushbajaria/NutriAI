@@ -69,7 +69,7 @@ export default function PantryScreen({ navigation }) {
             <View style={s.emptyState}>
               <Text style={s.emptyIcon}>🛒</Text>
               <Text style={s.emptyText}>Your pantry is empty</Text>
-              <Text style={s.emptySub}>Add ingredients to get AI meal suggestions</Text>
+              <Text style={s.emptySub}>Add ingredients to get smart meal suggestions</Text>
             </View>
           ) : (
             <View style={s.tagCloud}>

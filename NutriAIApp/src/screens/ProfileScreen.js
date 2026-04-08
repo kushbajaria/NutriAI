@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Modal, TextInput, Switch, KeyboardAvoidingView, Platform,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
+import { signOutUser } from '../services/auth';
 import { Badge, SectionHeader, GlowDot } from '../components/UI';
 
 const GOALS = ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Boost Energy'];
@@ -91,21 +92,25 @@ export default function ProfileScreen({ navigation }) {
     height, setHeight,
     weight, setWeight,
     diet, setDiet,
-    loggedMeals, user, setUser,
+    loggedMeals, completedWorkouts, user,
   } = useApp();
 
   const [activeSheet, setActiveSheet] = useState(null); // 'goal'|'diet'|'age'|'height'|'weight'|'privacy'|'about'
-  const [notifications, setNotifications] = useState(true);
   const [units, setUnits]                 = useState('Metric');
 
-  const signOut    = () => { setUser(null); navigation.replace('Auth'); };
-  const firstName  = user?.name?.split(' ')[0] || 'User';
-  const initial    = firstName[0]?.toUpperCase();
+  const signOut = async () => {
+    try { await signOutUser(); } catch (e) { console.warn('Sign out error:', e); }
+    // Auth state listener in App.js will handle navigation back to Auth screen
+  };
+  const displayName = user?.displayName || user?.name || 'User';
+  const firstName   = displayName.split(' ')[0];
+  const initial     = firstName[0]?.toUpperCase();
 
+  const workoutCount = completedWorkouts?.length || 0;
   const stats = [
     { val: loggedMeals.length, lbl: 'Meals',    color: C.lime    },
-    { val: '3',                lbl: 'Workouts',  color: C.blue    },
-    { val: '85%',              lbl: 'Adherence', color: C.protein },
+    { val: workoutCount,       lbl: 'Workouts',  color: C.blue    },
+    { val: loggedMeals.length > 0 || workoutCount > 0 ? `${Math.min(100, Math.round(((loggedMeals.length + workoutCount) / Math.max(1, loggedMeals.length + workoutCount)) * 100))}%` : '—', lbl: 'Active', color: C.protein },
   ];
 
   const dataRows = [
@@ -137,8 +142,8 @@ export default function ProfileScreen({ navigation }) {
               <Text style={ps.avatarInitial}>{initial}</Text>
             </View>
           </View>
-          <Text style={ps.name}>{user?.name || 'Demo User'}</Text>
-          <Text style={ps.email}>{user?.email || 'demo@nutriai.app'}</Text>
+          <Text style={ps.name}>{displayName}</Text>
+          <Text style={ps.email}>{user?.email || ''}</Text>
           <View style={ps.memberPill}>
             <GlowDot size={5} />
             <Text style={ps.memberText}>ACTIVE MEMBER</Text>
@@ -181,20 +186,6 @@ export default function ProfileScreen({ navigation }) {
         <SectionHeader title="SETTINGS" />
         <View style={ps.infoBlock}>
 
-          {/* Notifications toggle */}
-          <View style={ps.settingRow}>
-            <View style={ps.settingLeft}>
-              <Text style={ps.settingIcon}>🔔</Text>
-              <Text style={ps.settingLabel}>Notifications</Text>
-            </View>
-            <Switch
-              value={notifications}
-              onValueChange={setNotifications}
-              trackColor={{ false: C.surface4, true: C.limeDim }}
-              thumbColor={notifications ? C.lime : C.textTertiary}
-            />
-          </View>
-
           {/* Units toggle */}
           <TouchableOpacity
             style={ps.settingRow}
@@ -236,7 +227,7 @@ export default function ProfileScreen({ navigation }) {
           >
             <View style={ps.settingLeft}>
               <Text style={ps.settingIcon}>ℹ️</Text>
-              <Text style={ps.settingLabel}>About NutriAI</Text>
+              <Text style={ps.settingLabel}>About NutriSmart</Text>
             </View>
             <Text style={ps.chevron}>›</Text>
           </TouchableOpacity>
@@ -248,7 +239,7 @@ export default function ProfileScreen({ navigation }) {
           <Text style={ps.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
-        <Text style={ps.version}>NutriAI v1.0.0</Text>
+        <Text style={ps.version}>NutriSmart v1.0.0</Text>
 
       </ScrollView>
 
@@ -309,10 +300,10 @@ export default function ProfileScreen({ navigation }) {
       <Sheet visible={activeSheet === 'privacy'} onClose={() => setActiveSheet(null)} title="Data & Privacy">
         <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
           {[
-            { heading: 'Data We Collect', body: 'NutriAI collects the information you provide — name, email, age, height, weight, dietary preferences, and the meals and workouts you log. This data stays on your device and is used solely to personalise your nutrition and fitness recommendations.' },
+            { heading: 'Data We Collect', body: 'NutriSmart collects the information you provide — name, email, age, height, weight, dietary preferences, and the meals and workouts you log. This data is stored securely in the cloud and is used solely to personalise your nutrition and fitness recommendations.' },
             { heading: 'How We Use It', body: 'Your data powers meal scoring, goal tracking, and streak calculations. We do not sell, share, or transmit your personal data to third parties.' },
-            { heading: 'Your Rights', body: 'You can update or delete your information at any time. Signing out and reinstalling the app will clear all locally stored data.' },
-            { heading: 'Contact', body: 'Questions? Reach us at privacy@nutriai.app' },
+            { heading: 'Your Rights', body: 'You can update or delete your information at any time from your profile settings, including permanently deleting your account and all associated data.' },
+            { heading: 'Contact', body: 'Questions? Reach us at privacy@nutrismart.app' },
           ].map(sec => (
             <View key={sec.heading} style={ps.infoSection}>
               <Text style={ps.infoSecHeading}>{sec.heading}</Text>
@@ -323,18 +314,18 @@ export default function ProfileScreen({ navigation }) {
       </Sheet>
 
       {/* ── ABOUT ───────────────────────────────────── */}
-      <Sheet visible={activeSheet === 'about'} onClose={() => setActiveSheet(null)} title="About NutriAI">
+      <Sheet visible={activeSheet === 'about'} onClose={() => setActiveSheet(null)} title="About NutriSmart">
         <View style={ps.aboutLogoWrap}>
           <View style={ps.aboutLogo}>
             <Text style={ps.aboutLogoText}>N</Text>
           </View>
-          <Text style={ps.aboutAppName}>NutriAI</Text>
+          <Text style={ps.aboutAppName}>NutriSmart</Text>
           <Text style={ps.aboutVersion}>Version 1.0.0</Text>
         </View>
         {[
-          { heading: 'What is NutriAI?', body: 'NutriAI is your intelligent nutrition and fitness companion. It generates personalised meal recommendations from your pantry, tracks your macros, and helps you build consistent healthy habits through daily streaks.' },
+          { heading: 'What is NutriSmart?', body: 'NutriSmart is your nutrition and fitness companion. It generates personalised meal recommendations from your pantry, tracks your macros, and helps you build consistent healthy habits through daily streaks.' },
           { heading: 'How meals are scored', body: 'Each recipe is scored using a combination of pantry match (65%) and goal alignment (35%), so you always see meals you can actually make that fit your current goal.' },
-          { heading: 'Built with', body: 'React Native · iOS · Context API' },
+          { heading: 'Built with', body: 'React Native · iOS · Firebase' },
         ].map(sec => (
           <View key={sec.heading} style={ps.infoSection}>
             <Text style={ps.infoSecHeading}>{sec.heading}</Text>

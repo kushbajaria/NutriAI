@@ -6,7 +6,7 @@ import {
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 
 // ── DOTTED RING ────────────────────────────────────────────────────
-// Beautiful dotted progress ring — unique to NutriAI
+// Beautiful dotted progress ring — unique to NutriSmart
 export function DottedRing({ value, max, size = 200, color = C.lime, children }) {
   const pct = Math.min(1, Math.max(0, value / max));
   const NUM_DOTS = 48;

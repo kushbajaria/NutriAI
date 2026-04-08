@@ -229,11 +229,11 @@ function MealDetailModal({ visible, onClose, type }) {
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
-  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user, pantryMeals, streakData } = useApp();
+  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user, pantryMeals, streakData, pantry } = useApp();
   const [modal, setModal]         = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-  const firstName = user?.name?.split(' ')[0] || 'there';
+  const firstName = (user?.displayName || user?.name || 'there').split(' ')[0];
   const initial = firstName[0]?.toUpperCase();
 
   useEffect(() => {
@@ -285,7 +285,7 @@ export default function DashboardScreen({ navigation }) {
         <View style={ds.qaGrid}>
           <QuickCard
             icon="🥫" label="Pantry"
-            sub="22 items" color={C.carbs}
+            sub={`${pantry.length} items`} color={C.carbs}
             onPress={() => navigation.navigate('Pantry')}
           />
           <QuickCard

@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, KeyboardAvoidingView,
-  Platform, StatusBar,
+  Platform, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW, SCREEN_W } from '../constants/theme';
-import { useApp } from '../context/AppContext';
+import { signUp, signIn, signInWithGoogle, resetPassword } from '../services/auth';
 
 // Decorative background dots
 function BgDecor() {
@@ -19,16 +19,77 @@ function BgDecor() {
   );
 }
 
+// Map Firebase error codes to user-friendly messages
+function getAuthErrorMessage(code) {
+  switch (code) {
+    case 'auth/email-already-in-use':     return 'This email is already registered. Try signing in.';
+    case 'auth/invalid-email':            return 'Please enter a valid email address.';
+    case 'auth/weak-password':            return 'Password must be at least 6 characters.';
+    case 'auth/user-not-found':           return 'No account found with this email.';
+    case 'auth/wrong-password':           return 'Incorrect password. Try again.';
+    case 'auth/invalid-credential':       return 'Invalid email or password. Please try again.';
+    case 'auth/too-many-requests':        return 'Too many attempts. Please try again later.';
+    case 'auth/network-request-failed':   return 'Network error. Check your connection.';
+    default:                              return 'Something went wrong. Please try again.';
+  }
+}
+
 export default function AuthScreen({ navigation }) {
   const [tab, setTab]           = useState('login');
   const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const { setUser }             = useApp();
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
 
-  const handleAuth = () => {
-    setUser({ name: name || 'Demo User', email: email || 'demo@nutriai.app' });
-    navigation.replace(tab === 'login' ? 'Main' : 'Onboard');
+  const handleAuth = async () => {
+    setError('');
+
+    // Basic validation
+    if (!email.trim()) { setError('Email is required.'); return; }
+    if (!password.trim()) { setError('Password is required.'); return; }
+    if (tab === 'signup' && !name.trim()) { setError('Name is required.'); return; }
+    if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+
+    setLoading(true);
+    try {
+      if (tab === 'login') {
+        await signIn(email.trim(), password);
+        // Navigation is handled by App.js auth state listener
+      } else {
+        await signUp(email.trim(), password, name.trim());
+        // New user — App.js will detect no profile and show Onboard
+      }
+    } catch (err) {
+      setError(getAuthErrorMessage(err.code));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      // Navigation handled by auth state listener
+    } catch (err) {
+      if (err.code !== 'SIGN_IN_CANCELLED') {
+        setError(getAuthErrorMessage(err.code));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    if (!email.trim()) {
+      Alert.alert('Enter your email', 'Type your email address above, then tap Forgot.');
+      return;
+    }
+    resetPassword(email.trim())
+      .then(() => Alert.alert('Email sent', 'Check your inbox for a password reset link.'))
+      .catch(err => Alert.alert('Error', getAuthErrorMessage(err.code)));
   };
 
   return (
@@ -49,7 +110,7 @@ export default function AuthScreen({ navigation }) {
               <Text style={s.logoMarkText}>N</Text>
             </View>
             <View>
-              <Text style={s.logoName}>NutriAI</Text>
+              <Text style={s.logoName}>NutriSmart</Text>
               <Text style={s.logoTagline}>YOUR WELLNESS OS</Text>
             </View>
           </View>
@@ -61,12 +122,12 @@ export default function AuthScreen({ navigation }) {
             </Text>
             <View style={s.heroBadge}>
               <View style={s.heroBadgeDot} />
-              <Text style={s.heroBadgeText}>AI-POWERED</Text>
+              <Text style={s.heroBadgeText}>SMART NUTRITION</Text>
             </View>
             <Text style={s.heroSub}>
               {tab === 'login'
                 ? 'Track nutrition, plan meals, and hit your goals.'
-                : 'Get personalized AI guidance for your goals.'}
+                : 'Get personalized guidance tailored to your goals.'}
             </Text>
           </View>
 
@@ -76,7 +137,7 @@ export default function AuthScreen({ navigation }) {
               <TouchableOpacity
                 key={t}
                 style={[s.tabBtn, tab === t && s.tabBtnActive]}
-                onPress={() => setTab(t)}
+                onPress={() => { setTab(t); setError(''); }}
                 activeOpacity={0.7}
               >
                 <Text style={[s.tabBtnText, tab === t && s.tabBtnTextActive]}>
@@ -85,6 +146,13 @@ export default function AuthScreen({ navigation }) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Error message */}
+          {error ? (
+            <View style={s.errorBox}>
+              <Text style={s.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
           {/* Form */}
           <View style={s.form}>
@@ -98,6 +166,7 @@ export default function AuthScreen({ navigation }) {
                   value={name}
                   onChangeText={setName}
                   autoCapitalize="words"
+                  editable={!loading}
                 />
               </View>
             )}
@@ -113,6 +182,7 @@ export default function AuthScreen({ navigation }) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!loading}
               />
             </View>
 
@@ -120,7 +190,9 @@ export default function AuthScreen({ navigation }) {
               <View style={s.fieldLabelRow}>
                 <Text style={s.fieldLabel}>PASSWORD</Text>
                 {tab === 'login' && (
-                  <TouchableOpacity><Text style={s.forgotText}>Forgot?</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={handleForgotPassword}>
+                    <Text style={s.forgotText}>Forgot?</Text>
+                  </TouchableOpacity>
                 )}
               </View>
               <TextInput
@@ -130,18 +202,30 @@ export default function AuthScreen({ navigation }) {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                editable={!loading}
               />
             </View>
           </View>
 
           {/* CTA */}
-          <TouchableOpacity style={s.ctaBtn} onPress={handleAuth} activeOpacity={0.85}>
-            <Text style={s.ctaBtnText}>
-              {tab === 'login' ? 'Sign In' : 'Create Account'}
-            </Text>
-            <View style={s.ctaArrow}>
-              <Text style={s.ctaArrowText}>→</Text>
-            </View>
+          <TouchableOpacity
+            style={[s.ctaBtn, loading && s.ctaBtnDisabled]}
+            onPress={handleAuth}
+            activeOpacity={0.85}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={C.textInverse} style={{ flex: 1 }} />
+            ) : (
+              <>
+                <Text style={s.ctaBtnText}>
+                  {tab === 'login' ? 'Sign In' : 'Create Account'}
+                </Text>
+                <View style={s.ctaArrow}>
+                  <Text style={s.ctaArrowText}>→</Text>
+                </View>
+              </>
+            )}
           </TouchableOpacity>
 
           {/* OR divider */}
@@ -152,7 +236,12 @@ export default function AuthScreen({ navigation }) {
           </View>
 
           {/* Google */}
-          <TouchableOpacity style={s.googleBtn} onPress={handleAuth} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={s.googleBtn}
+            onPress={handleGoogleSignIn}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
             <View style={s.googleIcon}>
               <Text style={s.googleIconText}>G</Text>
             </View>
@@ -234,6 +323,14 @@ const s = StyleSheet.create({
   tabBtnText:       { fontSize: 14, fontWeight: '600', color: C.textTertiary },
   tabBtnTextActive: { color: C.textPrimary, fontWeight: '700' },
 
+  // Error
+  errorBox: {
+    backgroundColor: C.red + '18', borderRadius: RADIUS.md,
+    padding: 12, marginBottom: SPACING.md,
+    borderWidth: 1, borderColor: C.red + '30',
+  },
+  errorText: { fontSize: 13, color: C.red, fontWeight: '600', textAlign: 'center' },
+
   // Form
   form: { gap: SPACING.md, marginBottom: SPACING.lg },
   fieldWrap: { gap: 7 },
@@ -252,8 +349,10 @@ const s = StyleSheet.create({
     backgroundColor: C.lime, borderRadius: RADIUS.full,
     paddingLeft: SPACING.lg, paddingRight: 8, paddingVertical: 8,
     marginBottom: SPACING.md,
+    minHeight: 60,
     ...SHADOW.lime,
   },
+  ctaBtnDisabled: { opacity: 0.7 },
   ctaBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
   ctaArrow: {
     width: 44, height: 44, borderRadius: 22,
@@ -281,13 +380,4 @@ const s = StyleSheet.create({
   },
   googleIconText: { fontSize: 14, fontWeight: '900', color: C.textPrimary },
   googleText:     { fontSize: 15, fontWeight: '600', color: C.textPrimary },
-
-  // Feature pills
-  featureRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
-  featurePill: {
-    backgroundColor: C.surface2, borderRadius: RADIUS.full,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1, borderColor: C.border,
-  },
-  featurePillText: { fontSize: 12, color: C.textSecondary, fontWeight: '500' },
 });
