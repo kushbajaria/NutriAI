@@ -8,11 +8,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING } from '../constants/theme';
 import { GOALS, DIETS } from '../constants/data';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
 import { createUserProfile, setPantry } from '../services/firestore';
 import { PillButton } from '../components/UI';
+import { hapticSelection } from '../utils/haptics';
 
 export default function OnboardScreen() {
   const { user, refreshProfile } = useAuth();
+  const { showToast } = useUI();
 
   const [step, setStep]         = useState(1);
   const [goal, setGoal]         = useState('Lose Weight');
@@ -20,11 +23,29 @@ export default function OnboardScreen() {
   const [height, setHeight]     = useState('');
   const [weight, setWeight]     = useState('');
   const [selDiet, setSelDiet]   = useState(0);
+  const [units, setUnits]       = useState('Imperial');
   const [saving, setSaving]     = useState(false);
   const totalSteps = 2;
 
   const finish = async () => {
     if (!user) return;
+
+    const ageNum = parseInt(age, 10);
+    const heightNum = parseFloat(height);
+    const weightNum = parseFloat(weight);
+    if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) {
+      showToast('Please enter a valid age (13-120)');
+      return;
+    }
+    if (!height || isNaN(heightNum) || heightNum <= 0 || heightNum > 300) {
+      showToast('Please enter a valid height');
+      return;
+    }
+    if (!weight || isNaN(weightNum) || weightNum <= 0 || weightNum > 1000) {
+      showToast('Please enter a valid weight');
+      return;
+    }
+
     setSaving(true);
     try {
       await createUserProfile(user.uid, {
@@ -35,7 +56,7 @@ export default function OnboardScreen() {
         age,
         height,
         weight,
-        units:  'Metric',
+        units,
       });
       // Initialize empty pantry
       await setPantry(user.uid, []);
@@ -74,7 +95,7 @@ export default function OnboardScreen() {
                   <TouchableOpacity
                     key={g.label}
                     style={[s.goalCard, goal === g.label && s.goalCardActive]}
-                    onPress={() => setGoal(g.label)}
+                    onPress={() => { hapticSelection(); setGoal(g.label); }}
                     activeOpacity={0.8}
                   >
                     <Text style={s.goalEmoji}>{g.icon}</Text>
@@ -94,18 +115,36 @@ export default function OnboardScreen() {
               <Text style={s.sub}>This helps us calculate your daily targets accurately.</Text>
 
               <View style={s.fieldGroup}>
+                <Text style={s.fieldLabel}>UNITS</Text>
+                <View style={s.unitRow}>
+                  {['Imperial', 'Metric'].map(u => (
+                    <TouchableOpacity
+                      key={u}
+                      style={[s.unitChip, units === u && s.unitChipActive]}
+                      onPress={() => setUnits(u)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[s.unitText, units === u && s.unitTextActive]}>
+                        {u === 'Imperial' ? 'Imperial' : 'Metric'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={s.fieldGroup}>
                 <Text style={s.fieldLabel}>AGE</Text>
                 <TextInput style={s.input} placeholder="25" placeholderTextColor={C.textTertiary} value={age} onChangeText={setAge} keyboardType="numeric" />
               </View>
 
               <View style={s.row}>
                 <View style={{ flex: 1, marginRight: 6 }}>
-                  <Text style={s.fieldLabel}>HEIGHT</Text>
-                  <TextInput style={s.input} placeholder="175 cm" placeholderTextColor={C.textTertiary} value={height} onChangeText={setHeight} keyboardType="numeric" />
+                  <Text style={s.fieldLabel}>HEIGHT ({units === 'Imperial' ? 'in' : 'cm'})</Text>
+                  <TextInput style={s.input} placeholder={units === 'Imperial' ? '68' : '175'} placeholderTextColor={C.textTertiary} value={height} onChangeText={setHeight} keyboardType="numeric" />
                 </View>
                 <View style={{ flex: 1, marginLeft: 6 }}>
-                  <Text style={s.fieldLabel}>WEIGHT</Text>
-                  <TextInput style={s.input} placeholder="70 kg" placeholderTextColor={C.textTertiary} value={weight} onChangeText={setWeight} keyboardType="numeric" />
+                  <Text style={s.fieldLabel}>WEIGHT ({units === 'Imperial' ? 'lbs' : 'kg'})</Text>
+                  <TextInput style={s.input} placeholder={units === 'Imperial' ? '140' : '65'} placeholderTextColor={C.textTertiary} value={weight} onChangeText={setWeight} keyboardType="numeric" />
                 </View>
               </View>
 
@@ -116,7 +155,7 @@ export default function OnboardScreen() {
                     <TouchableOpacity
                       key={d}
                       style={[s.dietChip, selDiet === i && s.dietChipActive]}
-                      onPress={() => setSelDiet(i)}
+                      onPress={() => { hapticSelection(); setSelDiet(i); }}
                       activeOpacity={0.8}
                     >
                       <Text style={[s.dietText, selDiet === i && s.dietTextActive]}>{d}</Text>
@@ -172,6 +211,11 @@ const s = StyleSheet.create({
   fieldLabel: { fontSize: 10, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.2, marginBottom: 8 },
   input: { backgroundColor: C.surface1, borderWidth: 1, borderColor: C.border, borderRadius: RADIUS.md, paddingHorizontal: 16, paddingVertical: 14, color: C.textPrimary, fontSize: 15 },
   row: { flexDirection: 'row', marginBottom: SPACING.md },
+  unitRow: { flexDirection: 'row', gap: 10 },
+  unitChip: { flex: 1, paddingVertical: 12, borderRadius: RADIUS.md, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.surface1, alignItems: 'center' },
+  unitChipActive: { borderColor: C.lime, backgroundColor: C.limeGlowSm },
+  unitText: { fontSize: 14, color: C.textSecondary, fontWeight: '600' },
+  unitTextActive: { color: C.lime, fontWeight: '700' },
   dietGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   dietChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface1 },
   dietChipActive: { borderColor: C.lime, backgroundColor: C.limeGlow },

@@ -32,11 +32,11 @@ export async function setPantry(uid, items) {
   });
 }
 
-export function subscribePantry(uid, callback) {
+export function subscribePantry(uid, callback, onError) {
   return db.collection('users').doc(uid).collection('pantry').doc('items')
     .onSnapshot(doc => {
-      callback(doc.exists ? doc.data().items || [] : []);
-    });
+      callback(doc.exists && doc.data() ? doc.data().items || [] : []);
+    }, onError);
 }
 
 // ── Meals ─────────────────────────────────────────────────────────
@@ -49,13 +49,13 @@ export async function logMealToFirestore(uid, mealData) {
   });
 }
 
-export function subscribeMeals(uid, callback) {
+export function subscribeMeals(uid, callback, onError) {
   return db.collection('users').doc(uid).collection('meals')
     .orderBy('loggedAt', 'desc')
     .onSnapshot(snapshot => {
       const meals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       callback(meals);
-    });
+    }, onError);
 }
 
 // ── Streaks ───────────────────────────────────────────────────────
@@ -69,11 +69,11 @@ export async function updateStreak(uid, streakData) {
   await db.collection('users').doc(uid).collection('streaks').doc('current').set(streakData);
 }
 
-export function subscribeStreak(uid, callback) {
+export function subscribeStreak(uid, callback, onError) {
   return db.collection('users').doc(uid).collection('streaks').doc('current')
     .onSnapshot(doc => {
       callback(doc.exists ? doc.data() : { count: 0, activityDates: [], earnedToday: false });
-    });
+    }, onError);
 }
 
 // ── Workouts ──────────────────────────────────────────────────────
@@ -86,13 +86,29 @@ export async function logWorkoutToFirestore(uid, workoutData) {
   });
 }
 
-export function subscribeWorkouts(uid, callback) {
+export function subscribeWorkouts(uid, callback, onError) {
   return db.collection('users').doc(uid).collection('workouts')
     .orderBy('completedAt', 'desc')
     .onSnapshot(snapshot => {
       const workouts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       callback(workouts);
-    });
+    }, onError);
+}
+
+// ── Water Tracking ───────────────────────────────────────────────
+
+export async function setWaterIntake(uid, date, glasses) {
+  await db.collection('users').doc(uid).collection('water').doc(date).set({
+    glasses,
+    updatedAt: firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+export function subscribeWater(uid, date, callback, onError) {
+  return db.collection('users').doc(uid).collection('water').doc(date)
+    .onSnapshot(doc => {
+      callback(doc.exists ? doc.data().glasses || 0 : 0);
+    }, onError);
 }
 
 // ── Recipes ───────────────────────────────────────────────────────
@@ -114,6 +130,24 @@ export async function addReviewToFirestore(recipeId, uid, reviewData) {
     uid,
     createdAt: firestore.FieldValue.serverTimestamp(),
   });
+}
+
+// ── Data Export (GDPR) ───────────────────────────────────────────
+
+export async function exportUserData(uid) {
+  const userRef = db.collection('users').doc(uid);
+  const profileDoc = await userRef.get();
+  const profile = profileDoc.exists ? profileDoc.data() : {};
+
+  const subcollections = ['pantry', 'meals', 'streaks', 'workouts', 'water'];
+  const data = { profile };
+
+  for (const sub of subcollections) {
+    const snapshot = await userRef.collection(sub).get();
+    data[sub] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  }
+
+  return data;
 }
 
 // ── Account Deletion ──────────────────────────────────────────────

@@ -55,5 +55,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>NutriSmart reads your step count and active calories to show your daily activity on the dashboard.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>NutriSmart writes your logged meals and workouts to Apple Health so your nutrition and fitness data stays in sync.</string>
 </dict>
 </plist>

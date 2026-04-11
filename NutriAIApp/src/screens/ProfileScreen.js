@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Modal, TextInput, KeyboardAvoidingView, Platform,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Linking, Share, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
+import { useUI } from '../context/UIContext';
 import { signOutUser } from '../services/auth';
+import { exportUserData } from '../services/firestore';
 import { Badge, SectionHeader, GlowDot } from '../components/UI';
 
 const GOALS = ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Boost Energy'];
@@ -59,9 +61,34 @@ function OptionList({ options, selected, emojiMap, onSelect }) {
 }
 
 // ── NUMBER INPUT SHEET ─────────────────────────────────────────────
-function NumberSheet({ visible, onClose, title, placeholder, unit, value, onSave }) {
+function NumberSheet({ visible, onClose, title, placeholder, unit, value, onSave, fieldKey }) {
   const [val, setVal] = useState(value || '');
-  const save = () => { onSave(val); onClose(); };
+  const { showToast } = useUI();
+  const save = () => {
+    const num = parseFloat(val);
+    if (!val || isNaN(num) || num <= 0) {
+      showToast('Please enter a valid number');
+      return;
+    }
+    if (fieldKey === 'age' && (num < 13 || num > 120)) {
+      showToast('Age must be between 13 and 120');
+      return;
+    }
+    if (fieldKey === 'height' && num > 300) {
+      showToast('Please enter a valid height');
+      return;
+    }
+    if (fieldKey === 'weight' && num > 1000) {
+      showToast('Please enter a valid weight');
+      return;
+    }
+    if (fieldKey === 'calGoal' && (num < 800 || num > 10000)) {
+      showToast('Calorie goal must be 800-10,000');
+      return;
+    }
+    onSave(val);
+    onClose();
+  };
   return (
     <Sheet visible={visible} onClose={onClose} title={title}>
       <View style={ps.inputRow}>
@@ -92,33 +119,61 @@ export default function ProfileScreen({ navigation }) {
     height, setHeight,
     weight, setWeight,
     diet, setDiet,
+    units, setUnits,
+    calGoal, setCalGoal,
     loggedMeals, completedWorkouts, user,
+    healthKitEnabled,
   } = useApp();
 
   const [activeSheet, setActiveSheet] = useState(null); // 'goal'|'diet'|'age'|'height'|'weight'|'privacy'|'about'
-  const [units, setUnits]                 = useState('Metric');
+  const [exporting, setExporting] = useState(false);
 
   const signOut = async () => {
     try { await signOutUser(); } catch (e) { console.warn('Sign out error:', e); }
-    // Auth state listener in App.js will handle navigation back to Auth screen
+  };
+
+  const handleExportData = async () => {
+    if (!user?.uid || exporting) return;
+    setExporting(true);
+    try {
+      const data = await exportUserData(user.uid);
+      const json = JSON.stringify(data, null, 2);
+      await Share.share({ message: json, title: 'NutriSmart Data Export' });
+    } catch (err) {
+      console.warn('Export failed:', err.message);
+      showToast('Failed to export data. Try again.');
+    } finally {
+      setExporting(false);
+    }
   };
   const displayName = user?.displayName || user?.name || 'User';
   const firstName   = displayName.split(' ')[0];
   const initial     = firstName[0]?.toUpperCase();
 
   const workoutCount = completedWorkouts?.length || 0;
+  // Calculate active days in last 7 days
+  const last7 = [...Array(7)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toDateString();
+  });
+  const activeDays = new Set([
+    ...loggedMeals.filter(m => last7.includes(m.date)).map(m => m.date),
+    ...completedWorkouts.filter(w => last7.includes(w.date)).map(w => w.date),
+  ]).size;
   const stats = [
     { val: loggedMeals.length, lbl: 'Meals',    color: C.lime    },
     { val: workoutCount,       lbl: 'Workouts',  color: C.blue    },
-    { val: loggedMeals.length > 0 || workoutCount > 0 ? `${Math.min(100, Math.round(((loggedMeals.length + workoutCount) / Math.max(1, loggedMeals.length + workoutCount)) * 100))}%` : '—', lbl: 'Active', color: C.protein },
+    { val: activeDays > 0 ? `${Math.round((activeDays / 7) * 100)}%` : '—', lbl: 'Active', color: C.protein },
   ];
 
   const dataRows = [
-    { key: 'goal',   label: 'Goal',               display: goal,                       badge: true  },
-    { key: 'diet',   label: 'Dietary Preference',  display: diet || 'No Restrictions',  badge: false },
-    { key: 'age',    label: 'Age',                 display: age    ? `${age} yrs`   : '—', badge: false },
-    { key: 'height', label: 'Height',              display: height ? `${height} cm`  : '—', badge: false },
-    { key: 'weight', label: 'Weight',              display: weight ? `${weight} kg`  : '—', badge: false },
+    { key: 'goal',    label: 'Goal',               display: goal,                       badge: true  },
+    { key: 'diet',    label: 'Dietary Preference',  display: diet || 'No Restrictions',  badge: false },
+    { key: 'calGoal', label: 'Daily Calorie Goal',  display: `${calGoal} kcal`,          badge: false },
+    { key: 'age',     label: 'Age',                 display: age    ? `${age} yrs`   : '—', badge: false },
+    { key: 'height',  label: 'Height',              display: height ? `${height} ${units === 'Metric' ? 'cm' : 'in'}`   : '—', badge: false },
+    { key: 'weight',  label: 'Weight',              display: weight ? `${weight} ${units === 'Metric' ? 'kg' : 'lbs'}` : '—', badge: false },
   ];
 
   return (
@@ -189,7 +244,7 @@ export default function ProfileScreen({ navigation }) {
           {/* Units toggle */}
           <TouchableOpacity
             style={ps.settingRow}
-            onPress={() => setUnits(u => u === 'Metric' ? 'Imperial' : 'Metric')}
+            onPress={() => setUnits(units === 'Metric' ? 'Imperial' : 'Metric')}
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
@@ -215,6 +270,43 @@ export default function ProfileScreen({ navigation }) {
             <View style={ps.settingLeft}>
               <Text style={ps.settingIcon}>🔒</Text>
               <Text style={ps.settingLabel}>Data & Privacy</Text>
+            </View>
+            <Text style={ps.chevron}>›</Text>
+          </TouchableOpacity>
+
+          {/* Apple Health */}
+          <View style={ps.settingRow}>
+            <View style={ps.settingLeft}>
+              <Text style={ps.settingIcon}>❤️</Text>
+              <Text style={ps.settingLabel}>Apple Health</Text>
+            </View>
+            <Text style={[ps.settingStatus, healthKitEnabled && ps.settingStatusOn]}>
+              {healthKitEnabled ? 'Connected' : 'Not Available'}
+            </Text>
+          </View>
+
+          {/* Privacy Policy */}
+          <TouchableOpacity
+            style={ps.settingRow}
+            onPress={() => Linking.openURL('https://nutrismart.app/privacy')}
+            activeOpacity={0.7}
+          >
+            <View style={ps.settingLeft}>
+              <Text style={ps.settingIcon}>📄</Text>
+              <Text style={ps.settingLabel}>Privacy Policy</Text>
+            </View>
+            <Text style={ps.chevron}>›</Text>
+          </TouchableOpacity>
+
+          {/* Terms of Service */}
+          <TouchableOpacity
+            style={ps.settingRow}
+            onPress={() => Linking.openURL('https://nutrismart.app/terms')}
+            activeOpacity={0.7}
+          >
+            <View style={ps.settingLeft}>
+              <Text style={ps.settingIcon}>📋</Text>
+              <Text style={ps.settingLabel}>Terms of Service</Text>
             </View>
             <Text style={ps.chevron}>›</Text>
           </TouchableOpacity>
@@ -263,6 +355,18 @@ export default function ProfileScreen({ navigation }) {
         />
       </Sheet>
 
+      {/* ── CALORIE GOAL ─────────────────────────────── */}
+      <NumberSheet
+        visible={activeSheet === 'calGoal'}
+        onClose={() => setActiveSheet(null)}
+        title="Daily Calorie Goal"
+        placeholder="e.g. 2200"
+        unit="kcal"
+        value={String(calGoal)}
+        onSave={setCalGoal}
+        fieldKey="calGoal"
+      />
+
       {/* ── AGE ─────────────────────────────────────── */}
       <NumberSheet
         visible={activeSheet === 'age'}
@@ -272,6 +376,7 @@ export default function ProfileScreen({ navigation }) {
         unit="yrs"
         value={age}
         onSave={setAge}
+        fieldKey="age"
       />
 
       {/* ── HEIGHT ──────────────────────────────────── */}
@@ -283,6 +388,7 @@ export default function ProfileScreen({ navigation }) {
         unit={units === 'Metric' ? 'cm' : 'in'}
         value={height}
         onSave={setHeight}
+        fieldKey="height"
       />
 
       {/* ── WEIGHT ──────────────────────────────────── */}
@@ -294,6 +400,7 @@ export default function ProfileScreen({ navigation }) {
         unit={units === 'Metric' ? 'kg' : 'lbs'}
         value={weight}
         onSave={setWeight}
+        fieldKey="weight"
       />
 
       {/* ── DATA & PRIVACY ──────────────────────────── */}
@@ -310,6 +417,20 @@ export default function ProfileScreen({ navigation }) {
               <Text style={ps.infoSecBody}>{sec.body}</Text>
             </View>
           ))}
+          <TouchableOpacity
+            style={ps.exportBtn}
+            onPress={handleExportData}
+            disabled={exporting}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Export my data"
+          >
+            {exporting ? (
+              <ActivityIndicator color={C.lime} size="small" />
+            ) : (
+              <Text style={ps.exportBtnText}>Export My Data</Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       </Sheet>
 
@@ -398,6 +519,8 @@ const ps = StyleSheet.create({
   infoRight:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
   infoValue:    { fontSize: 14, color: C.textPrimary, fontWeight: '600' },
   chevron:      { fontSize: 22, color: C.textTertiary, fontWeight: '300' },
+  settingStatus:   { fontSize: 12, fontWeight: '600', color: C.textTertiary },
+  settingStatusOn: { color: C.lime },
 
   // Settings rows
   settingRow: {
@@ -474,6 +597,15 @@ const ps = StyleSheet.create({
   infoSection:    { marginBottom: SPACING.md },
   infoSecHeading: { fontSize: 13, fontWeight: '800', color: C.lime, letterSpacing: 0.5, marginBottom: 6 },
   infoSecBody:    { fontSize: 14, color: C.textSecondary, lineHeight: 22 },
+
+  // Export button
+  exportBtn: {
+    backgroundColor: C.surface3, borderRadius: RADIUS.md,
+    paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: C.lime + '30',
+    marginTop: SPACING.sm,
+  },
+  exportBtnText: { fontSize: 14, fontWeight: '700', color: C.lime },
 
   // About logo
   aboutLogoWrap: { alignItems: 'center', marginBottom: SPACING.lg },

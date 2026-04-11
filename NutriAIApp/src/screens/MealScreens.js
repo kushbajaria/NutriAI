@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, StatusBar, TextInput,
@@ -7,12 +7,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
+import { getRecipeReviews } from '../services/firestore';
 import { Badge, SectionHeader, GlowDot } from '../components/UI';
 
 // ── STAR ROW ───────────────────────────────────────────────────────
 function StarRow({ value, size = 15, onPress }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 3 }}>
+    <View style={{ flexDirection: 'row', gap: 3 }} accessible accessibilityLabel={`${Math.round(value)} out of 5 stars`} accessibilityRole={onPress ? 'adjustable' : 'text'}>
       {[1, 2, 3, 4, 5].map(n => (
         <TouchableOpacity
           key={n}
@@ -228,6 +229,36 @@ export function RecipeScreen({ navigation, route }) {
   const [userStars,  setUserStars]  = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [submitted,  setSubmitted]  = useState(false);
+  const [firestoreReviews, setFirestoreReviews] = useState([]);
+
+  const recipeId = route?.params?.recipe?.id;
+
+  // Fetch reviews from Firestore on mount
+  useEffect(() => {
+    if (!recipeId) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const remote = await getRecipeReviews(String(recipeId));
+        if (mounted && remote.length > 0) {
+          setFirestoreReviews(remote.map(rv => ({
+            id: rv.id,
+            user: rv.uid?.slice(0, 6) || 'User',
+            avatar: (rv.uid?.[0] || 'U').toUpperCase(),
+            stars: rv.stars,
+            text: rv.text || '',
+            date: rv.createdAt?.toDate?.()
+              ? rv.createdAt.toDate().toLocaleDateString()
+              : 'Recently',
+            isOwn: false,
+          })));
+        }
+      } catch (err) {
+        console.warn('Failed to fetch reviews:', err.message);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [recipeId]);
 
   if (!route?.params?.recipe) {
     return (
@@ -243,7 +274,13 @@ export function RecipeScreen({ navigation, route }) {
   }
 
   const r              = route.params.recipe;
-  const recipeReviews  = reviews[r.id] || [];
+  // Merge local reviews with Firestore reviews (dedup by id)
+  const localReviews = reviews[r.id] || [];
+  const localIds = new Set(localReviews.map(rv => rv.id));
+  const recipeReviews = [
+    ...localReviews,
+    ...firestoreReviews.filter(rv => !localIds.has(rv.id)),
+  ];
   const avgRating      = recipeReviews.length
     ? recipeReviews.reduce((a, rv) => a + rv.stars, 0) / recipeReviews.length
     : 0;

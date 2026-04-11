@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { AppProvider, useApp } from './src/context/AppContext';
 import { useAuth } from './src/context/AuthContext';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { C, SHADOW } from './src/constants/theme';
 import { Toast } from './src/components/UI';
 
@@ -61,6 +62,7 @@ function MainTabs() {
           name={t.name}
           component={COMPONENTS[t.name]}
           options={{
+            tabBarAccessibilityLabel: t.label,
             tabBarIcon: ({ focused }) => (
               <TabIcon icon={focused ? t.iconOn : t.icon} label={t.label} focused={focused} />
             ),
@@ -119,12 +121,14 @@ function RootNav() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
-      <AppProvider>
-        <RootNav />
-      </AppProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+        <AppProvider>
+          <RootNav />
+        </AppProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 

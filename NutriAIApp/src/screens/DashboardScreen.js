@@ -64,13 +64,14 @@ function StreakCelebration({ count, onDone }) {
 
 // ── STREAK CARD ────────────────────────────────────────────────────
 function StreakCard({ streakData }) {
+  const streak = streakData || { count: 0, activityDates: [], earnedToday: false };
   const today = new Date().toDateString();
   const days  = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     const ds = d.toDateString();
     const isToday   = ds === today;
-    const isEarned  = streakData.activityDates.includes(ds);
+    const isEarned  = streak.activityDates.includes(ds);
     return { isToday, isEarned };
   });
 
@@ -80,7 +81,7 @@ function StreakCard({ streakData }) {
       <View style={ds.streakLeft}>
         <Text style={ds.streakFire}>🔥</Text>
         <View>
-          <Text style={ds.streakCount}>{streakData.count}</Text>
+          <Text style={ds.streakCount}>{streak.count}</Text>
           <Text style={ds.streakLabel}>day streak</Text>
         </View>
       </View>
@@ -105,12 +106,12 @@ function StreakCard({ streakData }) {
 }
 
 // ── CALORIE HERO ───────────────────────────────────────────────────
-function CalorieHero({ totalCals, totalProtein, totalCarbs, totalFat, onPress }) {
-  const CAL_GOAL = 2200;
+function CalorieHero({ totalCals, totalProtein, totalCarbs, totalFat, calGoal, onPress }) {
+  const CAL_GOAL = calGoal || 2200;
   const pct = Math.min(1, totalCals / CAL_GOAL);
 
   return (
-    <TouchableOpacity style={ds.heroCard} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity style={ds.heroCard} onPress={onPress} activeOpacity={0.9} accessibilityRole="button" accessibilityLabel={`Calories today: ${totalCals} of ${CAL_GOAL} kcal`}>
       {/* Header row */}
       <View style={ds.heroTop}>
         <View>
@@ -142,7 +143,7 @@ function CalorieHero({ totalCals, totalProtein, totalCarbs, totalFat, onPress })
 // ── QUICK ACTION CARD ──────────────────────────────────────────────
 function QuickCard({ icon, label, sub, color = C.lime, onPress }) {
   return (
-    <TouchableOpacity style={ds.qaCard} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity style={ds.qaCard} onPress={onPress} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={`${label}: ${sub}`}>
       <View style={[ds.qaIconWrap, { backgroundColor: color + '15', borderColor: color + '25' }]}>
         <Text style={ds.qaIcon}>{icon}</Text>
       </View>
@@ -154,7 +155,12 @@ function QuickCard({ icon, label, sub, color = C.lime, onPress }) {
 
 // ── MEAL DETAIL MODAL ─────────────────────────────────────────────
 function MealDetailModal({ visible, onClose, type }) {
-  const { loggedMeals, totalCals, totalProtein, totalCarbs, totalFat } = useApp();
+  const { loggedMeals, totalCals, totalProtein, totalCarbs, totalFat, completedWorkouts } = useApp();
+  const todayStr = new Date().toDateString();
+  const todaysWorkouts = completedWorkouts.filter(w => w.date === todayStr);
+  const totalCalBurned = todaysWorkouts.reduce((a, w) => a + (w.calBurn || 0), 0);
+  const totalMinActive = todaysWorkouts.reduce((a, w) => a + (parseInt(w.duration) || 0), 0);
+  const totalExercises = todaysWorkouts.reduce((a, w) => a + (w.exerciseCount || 0), 0);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -201,24 +207,28 @@ function MealDetailModal({ visible, onClose, type }) {
             <>
               <Text style={ds.sheetTitle}>Today's Activity</Text>
               <View style={ds.macroRow}>
-                <MacroChip value="285" unit="" label="Cal Burned" color={C.lime}    />
-                <MacroChip value="45"  unit="" label="Min Active" color={C.blue}    />
-                <MacroChip value="8"   unit="" label="Exercises"  color={C.protein} />
+                <MacroChip value={totalCalBurned} unit="" label="Cal Burned" color={C.lime}    />
+                <MacroChip value={totalMinActive}  unit="" label="Min Active" color={C.blue}    />
+                <MacroChip value={totalExercises}  unit="" label="Exercises"  color={C.protein} />
               </View>
               <SectionHeader title="SESSIONS" />
-              {[
-                { name: 'Morning Strength', tag: 'Upper Body', done: true,  time: '6:30 AM' },
-                { name: 'Evening Cardio',   tag: 'Cardio',     done: false, time: '6:00 PM' },
-              ].map(w => (
-                <View key={w.name} style={ds.workoutRow}>
-                  <View style={[ds.wDot, { backgroundColor: w.done ? C.lime : C.surface3, borderColor: w.done ? C.lime : C.borderHi }]} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={ds.workoutName}>{w.name}</Text>
-                    <Text style={ds.workoutTime}>{w.time}</Text>
-                  </View>
-                  <Badge label={w.tag} color={w.done ? C.lime : C.textSecondary} />
+              {todaysWorkouts.length === 0 ? (
+                <View style={ds.emptyWrap}>
+                  <Text style={ds.emptyText}>No workouts today</Text>
+                  <Text style={ds.emptySub}>Head to Workout to start a session</Text>
                 </View>
-              ))}
+              ) : (
+                todaysWorkouts.map((w, i) => (
+                  <View key={w.id || i} style={ds.workoutRow}>
+                    <View style={[ds.wDot, { backgroundColor: C.lime, borderColor: C.lime }]} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={ds.workoutName}>{w.type || 'Workout'}</Text>
+                      <Text style={ds.workoutTime}>{w.duration || ''} min</Text>
+                    </View>
+                    <Badge label={`${w.calBurn || 0} cal`} color={C.lime} />
+                  </View>
+                ))
+              )}
             </>
           )}
         </TouchableOpacity>
@@ -229,7 +239,9 @@ function MealDetailModal({ visible, onClose, type }) {
 
 // ── MAIN SCREEN ───────────────────────────────────────────────────
 export default function DashboardScreen({ navigation }) {
-  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user, pantryMeals, streakData, pantry } = useApp();
+  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user, pantryMeals, streakData, pantry, completedWorkouts, calGoal, waterGlasses, waterGoal, addWater, removeWater, healthKitEnabled, todaySteps, todayActiveCal } = useApp();
+  const todayStr = new Date().toDateString();
+  const todaysWorkoutCount = completedWorkouts.filter(w => w.date === todayStr).length;
   const [modal, setModal]         = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
@@ -237,8 +249,8 @@ export default function DashboardScreen({ navigation }) {
   const initial = firstName[0]?.toUpperCase();
 
   useEffect(() => {
-    if (streakData.earnedToday) setShowCelebration(true);
-  }, [streakData.earnedToday]);
+    if (streakData?.earnedToday) setShowCelebration(true);
+  }, [streakData?.earnedToday]);
 
   return (
     <SafeAreaView style={ds.safe} edges={['top']}>
@@ -250,7 +262,7 @@ export default function DashboardScreen({ navigation }) {
           <Text style={ds.headerDate}>{today.toUpperCase()}</Text>
           <Text style={ds.headerGreet}>Hey, {firstName} 👋</Text>
         </View>
-        <TouchableOpacity style={ds.avatar} onPress={() => navigation.navigate('Profile')} activeOpacity={0.8}>
+        <TouchableOpacity style={ds.avatar} onPress={() => navigation.navigate('Profile')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Profile">
           <Text style={ds.avatarText}>{initial}</Text>
         </TouchableOpacity>
       </View>
@@ -277,8 +289,53 @@ export default function DashboardScreen({ navigation }) {
           totalProtein={totalProtein}
           totalCarbs={totalCarbs}
           totalFat={totalFat}
+          calGoal={calGoal}
           onPress={() => setModal('calories')}
         />
+
+        {/* Water tracking */}
+        <View style={ds.waterCard}>
+          <View style={ds.waterLeft}>
+            <DottedRing value={waterGlasses} max={waterGoal} size={68} color={C.blue} accessibilityLabel={`Water: ${waterGlasses} of ${waterGoal} glasses`}>
+              <Text style={ds.waterIcon}>💧</Text>
+            </DottedRing>
+          </View>
+          <View style={ds.waterMid}>
+            <Text style={ds.waterTitle}>Water Intake</Text>
+            <Text style={ds.waterCount}>
+              <Text style={{ color: C.blue, fontWeight: '900' }}>{waterGlasses}</Text>
+              <Text style={{ color: C.textTertiary }}> / {waterGoal} glasses</Text>
+            </Text>
+          </View>
+          <View style={ds.waterBtns}>
+            <TouchableOpacity style={ds.waterBtn} onPress={removeWater} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Remove water glass">
+              <Text style={ds.waterBtnText}>−</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[ds.waterBtn, ds.waterBtnAdd]} onPress={addWater} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Add water glass">
+              <Text style={[ds.waterBtnText, { color: C.blue }]}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* HealthKit Activity */}
+        {healthKitEnabled && (
+          <View style={ds.activityCard}>
+            <Text style={ds.activityTitle}>TODAY'S ACTIVITY</Text>
+            <View style={ds.activityRow}>
+              <View style={ds.activityItem}>
+                <Text style={ds.activityIcon}>👟</Text>
+                <Text style={ds.activityVal}>{todaySteps.toLocaleString()}</Text>
+                <Text style={ds.activityLabel}>Steps</Text>
+              </View>
+              <View style={ds.activityDivider} />
+              <View style={ds.activityItem}>
+                <Text style={ds.activityIcon}>🔥</Text>
+                <Text style={ds.activityVal}>{todayActiveCal}</Text>
+                <Text style={ds.activityLabel}>Active Cal</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Quick actions */}
         <SectionHeader title="QUICK ACCESS" style={{ marginTop: SPACING.md }} />
@@ -295,7 +352,7 @@ export default function DashboardScreen({ navigation }) {
           />
           <QuickCard
             icon="💪" label="Workout"
-            sub="1 of 2 done" color={C.protein}
+            sub={`${todaysWorkoutCount} done today`} color={C.protein}
             onPress={() => navigation.navigate('Workout')}
           />
         </View>
@@ -303,12 +360,48 @@ export default function DashboardScreen({ navigation }) {
         {/* Weekly bar chart */}
         <SectionHeader title="WEEKLY PROGRESS" action="Details" onAction={() => {}} />
         <Card style={ds.weekCard}>
+          {(() => {
+            // Compute real weekly stats
+            const now = new Date();
+            const dayOfWeek = now.getDay(); // 0=Sun
+            const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - mondayOffset);
+            weekStart.setHours(0, 0, 0, 0);
+
+            const weekMeals = loggedMeals.filter(m => {
+              const d = new Date(m.date);
+              return d >= weekStart;
+            });
+            const weekWorkouts = completedWorkouts.filter(w => {
+              const d = new Date(w.date);
+              return d >= weekStart;
+            });
+            const weekCalBurned = weekWorkouts.reduce((a, w) => a + (w.calBurn || 0), 0);
+            const daysActive = new Set([
+              ...weekMeals.map(m => m.date),
+              ...weekWorkouts.map(w => w.date),
+            ]).size;
+            const daysSoFar = mondayOffset + 1;
+            const adherence = daysSoFar > 0 ? Math.round((daysActive / daysSoFar) * 100) : 0;
+
+            // Compute daily meal counts for bar chart (Mon-Sun)
+            const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
+            weekMeals.forEach(m => {
+              const d = new Date(m.date);
+              const idx = d.getDay() === 0 ? 6 : d.getDay() - 1;
+              dailyCounts[idx]++;
+            });
+            const maxCount = Math.max(...dailyCounts, 1);
+
+            return (
+              <>
           <View style={ds.weekStats}>
             {[
-              { val: loggedMeals.length, lbl: 'Meals',     color: C.lime    },
-              { val: '3',               lbl: 'Workouts',   color: C.blue    },
-              { val: '85%',             lbl: 'Adherence',  color: C.protein },
-              { val: '1.2k',            lbl: 'Cal Burned', color: C.carbs   },
+              { val: weekMeals.length,    lbl: 'Meals',     color: C.lime    },
+              { val: weekWorkouts.length,  lbl: 'Workouts',  color: C.blue    },
+              { val: `${adherence}%`,      lbl: 'Adherence', color: C.protein },
+              { val: weekCalBurned >= 1000 ? `${(weekCalBurned / 1000).toFixed(1)}k` : weekCalBurned, lbl: 'Cal Burned', color: C.carbs },
             ].map(s => (
               <View key={s.lbl} style={ds.weekStat}>
                 <Text style={[ds.weekStatVal, { color: s.color }]}>{s.val}</Text>
@@ -318,9 +411,11 @@ export default function DashboardScreen({ navigation }) {
           </View>
           <View style={ds.weekDivider} />
           <View style={ds.barChart}>
-            {[100, 80, 60, 90, 70, 85, 40].map((h, i) => {
-              const isToday = i === 5;
-              const isFuture = i === 6;
+            {dailyCounts.map((count, i) => {
+              const h = maxCount > 0 ? (count / maxCount) * 100 : 0;
+              const todayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1;
+              const isToday = i === todayIdx;
+              const isFuture = i > todayIdx;
               return (
                 <View key={i} style={ds.barWrap}>
                   <View style={[
@@ -339,6 +434,9 @@ export default function DashboardScreen({ navigation }) {
               );
             })}
           </View>
+              </>
+            );
+          })()}
         </Card>
 
         {/* Suggested meal */}
@@ -370,7 +468,7 @@ export default function DashboardScreen({ navigation }) {
 
       {/* Streak celebration */}
       {showCelebration && (
-        <StreakCelebration count={streakData.count} onDone={() => setShowCelebration(false)} />
+        <StreakCelebration count={streakData?.count || 0} onDone={() => setShowCelebration(false)} />
       )}
     </SafeAreaView>
   );
@@ -420,6 +518,41 @@ const ds = StyleSheet.create({
   ringRemain: { fontSize: 11, color: C.lime, fontWeight: '700', marginTop: 4 },
 
   macroRow: { flexDirection: 'row', gap: 8 },
+
+  // Water card
+  waterCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
+    padding: SPACING.md, borderWidth: 1, borderColor: C.border,
+    marginBottom: SPACING.lg,
+  },
+  waterLeft: {},
+  waterMid: { flex: 1, gap: 4 },
+  waterTitle: { fontSize: 9, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.8 },
+  waterCount: { fontSize: 16, fontWeight: '600' },
+  waterIcon: { fontSize: 22 },
+  waterBtns: { flexDirection: 'row', gap: 8 },
+  waterBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: C.surface3, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: C.border,
+  },
+  waterBtnAdd: { backgroundColor: C.blue + '20', borderColor: C.blue + '40' },
+  waterBtnText: { fontSize: 20, fontWeight: '700', color: C.textSecondary, lineHeight: 22 },
+
+  // HealthKit activity card
+  activityCard: {
+    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
+    padding: SPACING.md, borderWidth: 1, borderColor: C.border,
+    marginBottom: SPACING.lg,
+  },
+  activityTitle: { fontSize: 9, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.8, marginBottom: 12 },
+  activityRow: { flexDirection: 'row', alignItems: 'center' },
+  activityItem: { flex: 1, alignItems: 'center', gap: 4 },
+  activityDivider: { width: 1, height: 40, backgroundColor: C.border },
+  activityIcon: { fontSize: 24 },
+  activityVal: { fontSize: 24, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
+  activityLabel: { fontSize: 10, fontWeight: '600', color: C.textTertiary, letterSpacing: 0.5 },
 
   // Quick actions
   qaGrid: { flexDirection: 'row', gap: 10, marginBottom: SPACING.lg },

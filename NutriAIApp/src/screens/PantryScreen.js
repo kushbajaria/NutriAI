@@ -8,6 +8,7 @@ import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { COMMON_INGREDIENTS } from '../constants/data';
 import { useApp } from '../context/AppContext';
 import { SectionHeader, GlowDot, PillButton } from '../components/UI';
+import { hapticSelection } from '../utils/haptics';
 
 export default function PantryScreen({ navigation }) {
   const { pantry, setPantry } = useApp();
@@ -15,10 +16,10 @@ export default function PantryScreen({ navigation }) {
 
   const add = () => {
     const v = input.trim().toLowerCase();
-    if (v && !pantry.includes(v)) { setPantry([...pantry, v]); setInput(''); }
+    if (v && !pantry.includes(v)) { hapticSelection(); setPantry([...pantry, v]); setInput(''); }
   };
-  const remove    = item => setPantry(pantry.filter(p => p !== item));
-  const addCommon = item => { if (!pantry.includes(item)) setPantry([...pantry, item]); };
+  const remove    = item => { hapticSelection(); setPantry(pantry.filter(p => p !== item)); };
+  const addCommon = item => { if (!pantry.includes(item)) { hapticSelection(); setPantry([...pantry, item]); } };
   const available = COMMON_INGREDIENTS.filter(c => !pantry.includes(c)).slice(0, 14);
 
   return (

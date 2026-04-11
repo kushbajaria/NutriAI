@@ -7,7 +7,7 @@ import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 
 // ── DOTTED RING ────────────────────────────────────────────────────
 // Beautiful dotted progress ring — unique to NutriSmart
-export function DottedRing({ value, max, size = 200, color = C.lime, children }) {
+export function DottedRing({ value, max, size = 200, color = C.lime, children, accessibilityLabel: customLabel }) {
   const pct = Math.min(1, Math.max(0, value / max));
   const NUM_DOTS = 48;
   const filled = Math.floor(pct * NUM_DOTS);
@@ -18,7 +18,7 @@ export function DottedRing({ value, max, size = 200, color = C.lime, children })
   const RADIUS_RING = size / 2 - DOT_H / 2 - 4;
 
   return (
-    <View style={{ width: size, height: size }}>
+    <View style={{ width: size, height: size }} accessible accessibilityLabel={customLabel || `${value} of ${max}`}>
       {Array.from({ length: NUM_DOTS }).map((_, i) => {
         const angle = (i / NUM_DOTS) * 2 * Math.PI - Math.PI / 2;
         const cx = size / 2 + RADIUS_RING * Math.cos(angle);
@@ -90,6 +90,9 @@ export function PillButton({ label, onPress, variant = 'primary', style, disable
       onPress={onPress}
       disabled={disabled}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
       style={[
         styles.pillBtn,
         variant === 'primary'   && styles.pillBtnPrimary,
@@ -117,7 +120,7 @@ export function PillButton({ label, onPress, variant = 'primary', style, disable
 // ── BADGE ──────────────────────────────────────────────────────────
 export function Badge({ label, color = C.lime }) {
   return (
-    <View style={[styles.badge, { backgroundColor: color + '18', borderColor: color + '35' }]}>
+    <View style={[styles.badge, { backgroundColor: color + '18', borderColor: color + '35' }]} accessible accessibilityLabel={label}>
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
   );
@@ -150,7 +153,7 @@ export function SectionHeader({ title, action, onAction }) {
 // ── MACRO CHIP ────────────────────────────────────────────────────
 export function MacroChip({ value, unit, label, color }) {
   return (
-    <View style={[styles.macroChip, { borderColor: color + '30', backgroundColor: color + '0D' }]}>
+    <View style={[styles.macroChip, { borderColor: color + '30', backgroundColor: color + '0D' }]} accessible accessibilityLabel={`${label}: ${value}${unit}`}>
       <View style={[styles.macroChipDot, { backgroundColor: color }]} />
       <Text style={[styles.macroChipVal, { color }]}>
         {value}<Text style={styles.macroChipUnit}>{unit}</Text>
