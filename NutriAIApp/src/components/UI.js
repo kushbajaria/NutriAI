@@ -3,85 +3,50 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   Animated,
 } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 
-// ── DOTTED RING ────────────────────────────────────────────────────
-// Beautiful dotted progress ring — unique to NutriSmart
-export function DottedRing({ value, max, size = 200, color = C.lime, children, accessibilityLabel: customLabel }) {
+// ── CIRCULAR PROGRESS ─────────────────────────────────────────────
+// Clean SVG ring — replaces DottedRing
+export function CircularProgress({ value, max, size = 200, color = C.accent, strokeWidth = 6, children, accessibilityLabel: customLabel }) {
   const pct = Math.min(1, Math.max(0, value / max));
-  const NUM_DOTS = 48;
-  const filled = Math.floor(pct * NUM_DOTS);
-  const partialIdx = filled;
-  const partialOpacity = (pct * NUM_DOTS) - filled;
-  const DOT_W = 4;
-  const DOT_H = 10;
-  const RADIUS_RING = size / 2 - DOT_H / 2 - 4;
+  const r = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * r;
+  const strokeDashoffset = circumference * (1 - pct);
 
   return (
-    <View style={{ width: size, height: size }} accessible accessibilityLabel={customLabel || `${value} of ${max}`}>
-      {Array.from({ length: NUM_DOTS }).map((_, i) => {
-        const angle = (i / NUM_DOTS) * 2 * Math.PI - Math.PI / 2;
-        const cx = size / 2 + RADIUS_RING * Math.cos(angle);
-        const cy = size / 2 + RADIUS_RING * Math.sin(angle);
-        const deg = (i / NUM_DOTS) * 360 - 90;
-        const isActive = i < filled;
-        const isPartial = i === partialIdx;
-
-        return (
-          <View
-            key={i}
-            style={{
-              position: 'absolute',
-              left: cx - DOT_W / 2,
-              top: cy - DOT_H / 2,
-              width: DOT_W,
-              height: DOT_H,
-              borderRadius: DOT_W / 2,
-              backgroundColor: isActive ? color : isPartial ? color : C.surface3,
-              opacity: isPartial ? Math.max(0.15, partialOpacity) : isActive ? 1 : 0.25,
-              transform: [{ rotate: `${deg + 90}deg` }],
-            }}
-          />
-        );
-      })}
-      <View style={{
-        position: 'absolute',
-        top: DOT_H + 8, left: DOT_H + 8,
-        right: DOT_H + 8, bottom: DOT_H + 8,
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        {children}
-      </View>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }} accessible accessibilityLabel={customLabel || `${value} of ${max}`}>
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        {/* Track */}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={C.surface3}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Fill */}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </Svg>
+      {children}
     </View>
   );
 }
 
-// ── MACRO ARC BAR ─────────────────────────────────────────────────
-export function MacroArcBar({ value, max, color, label, unit = 'g' }) {
-  const pct = Math.min(1, Math.max(0, value / max));
-  const NUM = 20;
-  const filled = Math.floor(pct * NUM);
-
-  return (
-    <View style={styles.macroArcWrap}>
-      <View style={styles.macroArcDots}>
-        {Array.from({ length: NUM }).map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.macroArcDot,
-              { backgroundColor: i < filled ? color : C.surface3, opacity: i < filled ? 1 : 0.3 }
-            ]}
-          />
-        ))}
-      </View>
-      <View style={styles.macroArcInfo}>
-        <Text style={[styles.macroArcVal, { color }]}>{value}<Text style={styles.macroArcUnit}>{unit}</Text></Text>
-        <Text style={styles.macroArcLabel}>{label}</Text>
-      </View>
-    </View>
-  );
-}
+// Keep DottedRing as alias for backward compat during migration
+export const DottedRing = CircularProgress;
 
 // ── PILL BUTTON ───────────────────────────────────────────────────
 export function PillButton({ label, onPress, variant = 'primary', style, disabled, icon }) {
@@ -118,7 +83,7 @@ export function PillButton({ label, onPress, variant = 'primary', style, disable
 }
 
 // ── BADGE ──────────────────────────────────────────────────────────
-export function Badge({ label, color = C.lime }) {
+export function Badge({ label, color = C.accent }) {
   return (
     <View style={[styles.badge, { backgroundColor: color + '18', borderColor: color + '35' }]} accessible accessibilityLabel={label}>
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
@@ -127,7 +92,7 @@ export function Badge({ label, color = C.lime }) {
 }
 
 // ── PROGRESS BAR ──────────────────────────────────────────────────
-export function ProgressBar({ value, max, color = C.lime, height = 3 }) {
+export function ProgressBar({ value, max, color = C.accent, height = 3 }) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
     <View style={[styles.progressTrack, { height }]}>
@@ -164,12 +129,8 @@ export function MacroChip({ value, unit, label, color }) {
 }
 
 // ── CARD ──────────────────────────────────────────────────────────
-export function Card({ children, style, onPress, glow }) {
-  const cardStyle = [
-    styles.card,
-    glow && styles.cardGlow,
-    style,
-  ];
+export function Card({ children, style, onPress }) {
+  const cardStyle = [styles.card, style];
   if (onPress) {
     return (
       <TouchableOpacity style={cardStyle} onPress={onPress} activeOpacity={0.75}>
@@ -212,7 +173,7 @@ export function ScreenHeader({ title, subtitle, onBack, right }) {
 }
 
 // ── STAT PILL ─────────────────────────────────────────────────────
-export function StatPill({ icon, value, label, color = C.lime }) {
+export function StatPill({ icon, value, label, color = C.accent }) {
   return (
     <View style={[styles.statPill, { borderColor: color + '25' }]}>
       <Text style={styles.statPillIcon}>{icon}</Text>
@@ -224,14 +185,12 @@ export function StatPill({ icon, value, label, color = C.lime }) {
   );
 }
 
-// ── GLOW DOT ──────────────────────────────────────────────────────
-export function GlowDot({ color = C.lime, size = 8 }) {
+// ── GLOW DOT (simplified — just a solid accent dot) ───────────────
+export function GlowDot({ color = C.accent, size = 8 }) {
   return (
     <View style={{
       width: size, height: size, borderRadius: size / 2,
       backgroundColor: color,
-      shadowColor: color, shadowOpacity: 0.8, shadowRadius: 4,
-      elevation: 2,
     }} />
   );
 }
@@ -257,28 +216,18 @@ export function Toast({ message }) {
 
   return (
     <Animated.View style={[styles.toast, { opacity, transform: [{ translateY }] }]}>
-      <GlowDot />
       <Text style={styles.toastText}>{message}</Text>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Macro Arc Bar
-  macroArcWrap: { flex: 1, backgroundColor: C.surface2, borderRadius: RADIUS.md, padding: 12, borderWidth: 1, borderColor: C.border },
-  macroArcDots: { flexDirection: 'row', gap: 2, marginBottom: 8, flexWrap: 'wrap' },
-  macroArcDot: { width: 3, height: 6, borderRadius: 2 },
-  macroArcInfo: { alignItems: 'center' },
-  macroArcVal: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
-  macroArcUnit: { fontSize: 11, fontWeight: '600' },
-  macroArcLabel: { fontSize: 10, color: C.textTertiary, fontWeight: '600', marginTop: 2 },
-
   // Pill Button
   pillBtn: { borderRadius: RADIUS.full, paddingHorizontal: SPACING.lg, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  pillBtnPrimary: { backgroundColor: C.lime, ...SHADOW.lime },
+  pillBtnPrimary: { backgroundColor: C.accent, ...SHADOW.accent },
   pillBtnSecondary: { backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi },
   pillBtnGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.borderHi },
-  pillBtnDanger: { backgroundColor: C.redGlow, borderWidth: 1, borderColor: C.red + '40' },
+  pillBtnDanger: { backgroundColor: C.redBg, borderWidth: 1, borderColor: C.red + '40' },
   pillBtnDisabled: { opacity: 0.35 },
   pillBtnIcon: { fontSize: 16 },
   pillBtnText: { fontSize: 15, fontWeight: '700', letterSpacing: 0.1 },
@@ -295,10 +244,10 @@ const styles = StyleSheet.create({
   progressTrack: { backgroundColor: C.surface3, borderRadius: RADIUS.full, overflow: 'hidden', width: '100%' },
   progressFill: { borderRadius: RADIUS.full },
 
-  // Section Header
+  // Section Header — normal case, slightly larger
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
-  sectionHeaderText: { fontSize: 10, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.5 },
-  sectionHeaderAction: { fontSize: 12, color: C.lime, fontWeight: '600', letterSpacing: 0.3 },
+  sectionHeaderText: { fontSize: 13, fontWeight: '600', color: C.textSecondary, letterSpacing: 0.2 },
+  sectionHeaderAction: { fontSize: 13, color: C.accent, fontWeight: '600' },
 
   // Macro Chip
   macroChip: { flex: 1, borderRadius: RADIUS.md, padding: 12, alignItems: 'center', borderWidth: 1, gap: 4 },
@@ -309,7 +258,6 @@ const styles = StyleSheet.create({
 
   // Card
   card: { backgroundColor: C.surface1, borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, borderColor: C.border },
-  cardGlow: { borderColor: C.lime + '35', ...SHADOW.lime },
 
   // Divider
   divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: SPACING.md },
@@ -319,10 +267,10 @@ const styles = StyleSheet.create({
   // Screen Header
   screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: C.border },
   screenHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  screenHeaderSub: { fontSize: 9, color: C.lime, fontWeight: '700', letterSpacing: 1.8, marginBottom: 1 },
+  screenHeaderSub: { fontSize: 9, color: C.accent, fontWeight: '700', letterSpacing: 1.8, marginBottom: 1 },
   screenHeaderTitle: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
-  backBtnText: { fontSize: 18, color: C.lime, marginTop: -1 },
+  backBtnText: { fontSize: 18, color: C.accent, marginTop: -1 },
 
   // Stat Pill
   statPill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface2, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1 },
@@ -330,7 +278,7 @@ const styles = StyleSheet.create({
   statPillValue: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
   statPillLabel: { fontSize: 10, color: C.textTertiary, fontWeight: '600' },
 
-  // Toast
-  toast: { position: 'absolute', bottom: 110, alignSelf: 'center', backgroundColor: C.surface2, borderRadius: RADIUS.full, paddingHorizontal: 22, paddingVertical: 13, borderWidth: 1, borderColor: C.lime + '45', flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 999, ...SHADOW.lime },
+  // Toast — clean, no glow
+  toast: { position: 'absolute', bottom: 110, alignSelf: 'center', backgroundColor: C.surface2, borderRadius: RADIUS.full, paddingHorizontal: 22, paddingVertical: 13, borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 999, ...SHADOW.sm },
   toastText: { fontSize: 14, fontWeight: '600', color: C.textPrimary },
 });

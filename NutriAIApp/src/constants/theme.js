@@ -3,46 +3,45 @@ import { Dimensions, Platform } from 'react-native';
 export const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export const C = {
-  // Base — deep neutral charcoal
-  black:      '#0E0E12',
-  surface0:   '#131318',
-  surface1:   '#1A1A22',
-  surface2:   '#21212C',
-  surface3:   '#292936',
-  surface4:   '#313140',
-  border:     '#272735',
-  borderHi:   '#323242',
-  borderGlow: 'rgba(124,143,250,0.18)',
+  // Base — warm neutral charcoal
+  black:      '#0C0C0F',
+  surface0:   '#121214',
+  surface1:   '#1B1B1F',
+  surface2:   '#232328',
+  surface3:   '#2C2C32',
+  surface4:   '#363640',
+  border:     '#28282F',
+  borderHi:   '#343440',
 
-  // Accent — soft indigo / periwinkle
-  lime:       '#7C8FFA',
-  limeDim:    '#5A6ED8',
-  limeDeep:   '#1C2260',
-  limeGlow:   'rgba(124,143,250,0.12)',
-  limeGlowSm: 'rgba(124,143,250,0.06)',
-  limeGlowMd: 'rgba(124,143,250,0.18)',
+  // Primary accent — iOS system green
+  accent:      '#34C759',
+  accentDim:   '#2AA548',
+  accentDeep:  '#1A3D24',
+  accentBg:    'rgba(52,199,89,0.10)',
+  accentBgSm:  'rgba(52,199,89,0.05)',
+  accentBgMd:  'rgba(52,199,89,0.15)',
 
-  // Text — cool neutral hierarchy
-  textPrimary:   '#F0F0F8',
-  textSecondary: '#8888A8',
-  textTertiary:  '#4A4A64',
+  // Text — clean neutral hierarchy
+  textPrimary:   '#F0F0F5',
+  textSecondary: '#8A8A9A',
+  textTertiary:  '#505060',
   textInverse:   '#FFFFFF',
-  textMuted:     '#252538',
+  textMuted:     '#252530',
 
-  // Semantic macros — muted pastels
+  // Semantic macros
   protein:     '#A78BFA',
-  proteinGlow: 'rgba(167,139,250,0.12)',
+  proteinBg:   'rgba(167,139,250,0.10)',
   carbs:       '#F5C060',
-  carbsGlow:   'rgba(245,192,96,0.12)',
+  carbsBg:     'rgba(245,192,96,0.10)',
   fat:         '#F08050',
-  fatGlow:     'rgba(240,128,80,0.12)',
+  fatBg:       'rgba(240,128,80,0.10)',
 
   // Other
   blue:     '#6BA4FA',
-  blueGlow: 'rgba(107,164,250,0.12)',
+  blueBg:   'rgba(107,164,250,0.10)',
   red:      '#F07070',
-  redGlow:  'rgba(240,112,112,0.12)',
-  green:    '#52C87A',
+  redBg:    'rgba(240,112,112,0.10)',
+  green:    '#34C759',
 };
 
 export const FONT = {
@@ -94,11 +93,11 @@ export const SHADOW = {
     shadowRadius: 20,
     elevation: 10,
   },
-  lime: {
-    shadowColor: '#7C8FFA',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    elevation: 8,
+  accent: {
+    shadowColor: '#34C759',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
 };

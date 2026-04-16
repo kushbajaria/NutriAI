@@ -1,6 +1,6 @@
-# NutriAI
+# NutriSmart
 
-A React Native nutrition and fitness companion for iOS. NutriAI generates personalised meal recommendations from your pantry, tracks your daily macros, schedules workouts, and builds consistent habits through a daily streak system.
+A React Native nutrition and fitness companion for iOS. NutriSmart generates personalised meal recommendations from your pantry, tracks your daily macros, schedules workouts, and builds consistent habits through a daily streak system.
 
 ---
 
@@ -30,7 +30,7 @@ A React Native nutrition and fitness companion for iOS. NutriAI generates person
 - Edit goal, dietary preference, age, height, and weight inline via bottom sheets
 - Toggle notifications on/off
 - Switch between Metric and Imperial units
-- Data & Privacy and About NutriAI info panels
+- Data & Privacy and About NutriSmart info panels
 
 ---
 

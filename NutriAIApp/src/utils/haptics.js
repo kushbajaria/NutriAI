@@ -1,8 +1,15 @@
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+let RNHaptic = null;
+try {
+  RNHaptic = require('react-native-haptic-feedback').default;
+} catch {}
 
 const opts = { enableVibrateFallback: false, ignoreAndroidSystemSettings: false };
 
-export const hapticLight     = () => ReactNativeHapticFeedback.trigger('impactLight', opts);
-export const hapticMedium    = () => ReactNativeHapticFeedback.trigger('impactMedium', opts);
-export const hapticSuccess   = () => ReactNativeHapticFeedback.trigger('notificationSuccess', opts);
-export const hapticSelection = () => ReactNativeHapticFeedback.trigger('selection', opts);
+const safe = (type) => () => {
+  try { RNHaptic?.trigger(type, opts); } catch {}
+};
+
+export const hapticLight     = safe('impactLight');
+export const hapticMedium    = safe('impactMedium');
+export const hapticSuccess   = safe('notificationSuccess');
+export const hapticSelection = safe('selection');

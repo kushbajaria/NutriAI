@@ -26,11 +26,8 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
 	</dict>
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -53,8 +50,16 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Ionicons.ttf</string>
+	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>NutriSmart uses your photo library to set a profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>NutriSmart uses the camera to take a profile picture.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>NutriSmart reads your step count and active calories to show your daily activity on the dashboard.</string>
 	<key>NSHealthUpdateUsageDescription</key>

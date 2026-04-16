@@ -6,15 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { WORKOUTS, DURATIONS } from '../constants/data';
 import { useApp } from '../context/AppContext';
-import { Badge, SectionHeader, GlowDot } from '../components/UI';
+import { Badge, SectionHeader } from '../components/UI';
+import Icon from '../components/Icon';
 
 const TYPES = Object.keys(WORKOUTS);
 
-export default function WorkoutScreen() {
+export default function WorkoutScreen({ navigation }) {
   const [type, setType]         = useState('Full Body');
   const [duration, setDuration] = useState('30 min');
-  const [completed, setCompleted] = useState(false);
-  const { totalCals, goal, showToast, logWorkout } = useApp();
+  const { totalCals, goal } = useApp();
   const plan      = WORKOUTS[type];
   const exercises = plan.byDuration[duration];
   const calBurn   = plan.calBurn[duration];
@@ -24,13 +24,7 @@ export default function WorkoutScreen() {
 
       {/* Header */}
       <View style={s.header}>
-        <View>
-          <View style={s.eyebrowRow}>
-            <GlowDot size={6} />
-            <Text style={s.eyebrow}>TODAY'S PLAN</Text>
-          </View>
-          <Text style={s.headerTitle}>Workout</Text>
-        </View>
+        <Text style={s.headerTitle}>Workout</Text>
         <View style={s.calBadge}>
           <Text style={s.calBadgeVal}>~{calBurn}</Text>
           <Text style={s.calBadgeLbl}>cal burn</Text>
@@ -39,8 +33,15 @@ export default function WorkoutScreen() {
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
+        {/* Workout log card */}
+        <TouchableOpacity style={s.logCard} onPress={() => navigation.navigate('WorkoutLog')} activeOpacity={0.7}>
+          <Icon name="time-outline" size={18} color={C.accent} />
+          <Text style={s.logCardText}>Workout Log</Text>
+          <Icon name="chevron-forward" size={16} color={C.textTertiary} />
+        </TouchableOpacity>
+
         {/* Type selector */}
-        <SectionHeader title="WORKOUT TYPE" />
+        <SectionHeader title="Workout Type" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.lg }}>
           <View style={s.typeRow}>
             {TYPES.map(t => {
@@ -52,7 +53,7 @@ export default function WorkoutScreen() {
                   onPress={() => { setType(t); setCompleted(false); }}
                   activeOpacity={0.8}
                 >
-                  <Text style={s.typeEmoji}>{WORKOUTS[t].emoji}</Text>
+                  <Icon name={WORKOUTS[t].icon} size={24} color={active ? C.accent : C.textSecondary} />
                   <Text style={[s.typeLabel, active && s.typeLabelActive]}>{t}</Text>
                   <Text style={s.typeDesc}>{WORKOUTS[t].desc}</Text>
                   {active && <View style={s.typeActiveDot} />}
@@ -63,7 +64,7 @@ export default function WorkoutScreen() {
         </ScrollView>
 
         {/* Duration */}
-        <SectionHeader title="DURATION" />
+        <SectionHeader title="Duration" />
         <View style={s.durRow}>
           {DURATIONS.map(d => {
             const active = duration === d;
@@ -84,19 +85,19 @@ export default function WorkoutScreen() {
         <View style={s.planCard}>
           <View style={s.planTop}>
             <View style={s.planEmoji}>
-              <Text style={s.planEmojiText}>{plan.emoji}</Text>
+              <Icon name={plan.icon} size={28} color={C.accent} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.planTitle}>{type}</Text>
               <Text style={s.planDuration}>{duration} · {exercises.length} exercises</Text>
               <Text style={s.planDesc}>{plan.desc}</Text>
             </View>
-            <Badge label={`~${calBurn} cal`} color={C.lime} />
+            <Badge label={`~${calBurn} cal`} color={C.accent} />
           </View>
 
           <View style={s.planDivider} />
 
-          <SectionHeader title="EXERCISES" />
+          <SectionHeader title="Exercises" />
           <View style={s.exerciseList}>
             {exercises.map((ex, i) => (
               <View key={ex.name} style={s.exerciseRow}>
@@ -117,24 +118,18 @@ export default function WorkoutScreen() {
 
           {/* Start button */}
           <TouchableOpacity
-            style={[s.startBtn, completed && s.startBtnDone]}
-            onPress={async () => {
-              if (!completed) {
-                await logWorkout({ type, duration, calBurn, exerciseCount: exercises.length });
-                setCompleted(true);
-              }
-            }}
+            style={s.startBtn}
+            onPress={() => navigation.navigate('ActiveWorkout', { type, duration, calBurn, exercises })}
             activeOpacity={0.85}
           >
-            <Text style={s.startBtnText}>{completed ? '✓  Workout Logged' : '▶  Start Workout'}</Text>
+            <Text style={s.startBtnText}>Start Workout</Text>
           </TouchableOpacity>
         </View>
 
         {/* AI Insight */}
         <View style={s.insightCard}>
           <View style={s.insightHeader}>
-            <GlowDot size={7} />
-            <Text style={s.insightLabel}>SMART INSIGHT</Text>
+            <Text style={s.insightLabel}>Insight</Text>
           </View>
           <Text style={s.insightBody}>
             With{' '}
@@ -159,11 +154,11 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   eyebrowRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  eyebrow:     { fontSize: 9, fontWeight: '700', color: C.lime, letterSpacing: 2 },
+  eyebrow:     { fontSize: 9, fontWeight: '700', color: C.accent, letterSpacing: 2 },
   headerTitle: { fontSize: 26, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
-  calBadge:    { backgroundColor: C.limeGlow, borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: C.lime + '30', alignItems: 'center', marginTop: 4 },
-  calBadgeVal: { fontSize: 18, fontWeight: '900', color: C.lime, letterSpacing: -0.5 },
-  calBadgeLbl: { fontSize: 9, fontWeight: '700', color: C.limeDim, letterSpacing: 0.5 },
+  calBadge:    { backgroundColor: C.accentBg, borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: C.accent + '30', alignItems: 'center', marginTop: 4 },
+  calBadgeVal: { fontSize: 18, fontWeight: '900', color: C.accent, letterSpacing: -0.5 },
+  calBadgeLbl: { fontSize: 9, fontWeight: '700', color: C.accentDim, letterSpacing: 0.5 },
 
   scroll:        { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
@@ -176,15 +171,15 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.border, gap: 4,
   },
   typeCardActive: {
-    borderColor: C.lime,
-    backgroundColor: C.limeGlowSm,
-    ...SHADOW.lime,
+    borderColor: C.accent,
+    backgroundColor: C.accentBgSm,
+    ...SHADOW.accent,
   },
   typeEmoji:      { fontSize: 26, marginBottom: 2 },
   typeLabel:      { fontSize: 13, fontWeight: '700', color: C.textSecondary },
   typeLabelActive:{ color: C.textPrimary },
   typeDesc:       { fontSize: 10, color: C.textTertiary, fontWeight: '500' },
-  typeActiveDot:  { width: 5, height: 5, borderRadius: 3, backgroundColor: C.lime, marginTop: 4, ...SHADOW.lime },
+  typeActiveDot:  { width: 5, height: 5, borderRadius: 3, backgroundColor: C.accent, marginTop: 4, ...SHADOW.accent },
 
   // Duration
   durRow: { flexDirection: 'row', gap: 8, marginBottom: SPACING.lg, flexWrap: 'wrap' },
@@ -193,9 +188,9 @@ const s = StyleSheet.create({
     borderRadius: RADIUS.full, borderWidth: 1,
     borderColor: C.border, backgroundColor: C.surface1,
   },
-  durChipActive: { borderColor: C.lime, backgroundColor: C.limeGlow },
+  durChipActive: { borderColor: C.accent, backgroundColor: C.accentBg },
   durText:       { fontSize: 13, color: C.textSecondary, fontWeight: '600' },
-  durTextActive: { color: C.lime, fontWeight: '700' },
+  durTextActive: { color: C.accent, fontWeight: '700' },
 
   // Plan card
   planCard: {
@@ -207,7 +202,7 @@ const s = StyleSheet.create({
   planEmoji:     { width: 56, height: 56, backgroundColor: C.surface3, borderRadius: RADIUS.lg, alignItems: 'center', justifyContent: 'center' },
   planEmojiText: { fontSize: 28 },
   planTitle:     { fontSize: 18, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.3, marginBottom: 2 },
-  planDuration:  { fontSize: 12, color: C.lime, fontWeight: '600', marginBottom: 3 },
+  planDuration:  { fontSize: 12, color: C.accent, fontWeight: '600', marginBottom: 3 },
   planDesc:      { fontSize: 12, color: C.textSecondary },
   planDivider:   { height: 1, backgroundColor: C.border, marginBottom: SPACING.md },
 
@@ -223,25 +218,33 @@ const s = StyleSheet.create({
   exName:    { fontSize: 14, fontWeight: '700', color: C.textPrimary, marginBottom: 2 },
   exMuscle:  { fontSize: 11, color: C.textTertiary },
   exRight:   { alignItems: 'flex-end' },
-  exSets:    { fontSize: 14, fontWeight: '800', color: C.lime },
+  exSets:    { fontSize: 14, fontWeight: '800', color: C.accent },
   exRest:    { fontSize: 10, color: C.textTertiary, marginTop: 2 },
 
   // Start button
   startBtn: {
-    backgroundColor: C.lime, borderRadius: RADIUS.full,
+    backgroundColor: C.accent, borderRadius: RADIUS.full,
     paddingVertical: 16, alignItems: 'center',
-    ...SHADOW.lime,
+    ...SHADOW.accent,
   },
-  startBtnDone: { backgroundColor: C.limeDim },
   startBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
 
   // Insight card
   insightCard: {
-    backgroundColor: C.limeGlowSm, borderRadius: RADIUS.lg,
-    padding: SPACING.md, borderWidth: 1, borderColor: C.lime + '22',
+    backgroundColor: C.accentBgSm, borderRadius: RADIUS.lg,
+    padding: SPACING.md, borderWidth: 1, borderColor: C.accent + '22',
   },
   insightHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  insightLabel:     { fontSize: 9, fontWeight: '800', color: C.lime, letterSpacing: 2 },
+  insightLabel:     { fontSize: 9, fontWeight: '800', color: C.accent, letterSpacing: 2 },
   insightBody:      { fontSize: 14, color: C.textSecondary, lineHeight: 23 },
   insightHighlight: { color: C.textPrimary, fontWeight: '700' },
+
+  logCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.surface1, borderRadius: RADIUS.md,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: C.border,
+    marginBottom: SPACING.md,
+  },
+  logCardText: { flex: 1, fontSize: 14, fontWeight: '700', color: C.textPrimary },
 });

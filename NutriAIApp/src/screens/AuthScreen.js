@@ -5,19 +5,8 @@ import {
   Platform, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW, SCREEN_W } from '../constants/theme';
-import { signUp, signIn, signInWithGoogle, resetPassword } from '../services/auth';
-
-// Decorative background dots
-function BgDecor() {
-  return (
-    <View style={s.bgDecor} pointerEvents="none">
-      <View style={[s.bgCircle, s.bgCircle1]} />
-      <View style={[s.bgCircle, s.bgCircle2]} />
-      <View style={[s.bgCircle, s.bgCircle3]} />
-    </View>
-  );
-}
+import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { signUp, signIn, signInWithGoogle, signInWithApple, resetPassword } from '../services/auth';
 
 // Map Firebase error codes to user-friendly messages
 function getAuthErrorMessage(code) {
@@ -82,6 +71,20 @@ export default function AuthScreen({ navigation }) {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await signInWithApple();
+    } catch (err) {
+      if (err.code !== 'ERR_REQUEST_CANCELED') {
+        setError(getAuthErrorMessage(err.code));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleForgotPassword = () => {
     if (!email.trim()) {
       Alert.alert('Enter your email', 'Type your email address above, then tap Forgot.');
@@ -95,8 +98,6 @@ export default function AuthScreen({ navigation }) {
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={C.black} />
-      <BgDecor />
-
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={s.scroll}
@@ -111,7 +112,7 @@ export default function AuthScreen({ navigation }) {
             </View>
             <View>
               <Text style={s.logoName}>NutriSmart</Text>
-              <Text style={s.logoTagline}>YOUR WELLNESS OS</Text>
+              <Text style={s.logoTagline}>Your Wellness OS</Text>
             </View>
           </View>
 
@@ -120,10 +121,6 @@ export default function AuthScreen({ navigation }) {
             <Text style={s.heroTitle}>
               {tab === 'login' ? 'Welcome\nback.' : 'Start your\njourney.'}
             </Text>
-            <View style={s.heroBadge}>
-              <View style={s.heroBadgeDot} />
-              <Text style={s.heroBadgeText}>SMART NUTRITION</Text>
-            </View>
             <Text style={s.heroSub}>
               {tab === 'login'
                 ? 'Track nutrition, plan meals, and hit your goals.'
@@ -158,7 +155,7 @@ export default function AuthScreen({ navigation }) {
           <View style={s.form}>
             {tab === 'signup' && (
               <View style={s.fieldWrap}>
-                <Text style={s.fieldLabel}>FULL NAME</Text>
+                <Text style={s.fieldLabel}>Full name</Text>
                 <TextInput
                   style={s.input}
                   placeholder="Your name"
@@ -172,7 +169,7 @@ export default function AuthScreen({ navigation }) {
             )}
 
             <View style={s.fieldWrap}>
-              <Text style={s.fieldLabel}>EMAIL ADDRESS</Text>
+              <Text style={s.fieldLabel}>Email</Text>
               <TextInput
                 style={s.input}
                 placeholder="you@example.com"
@@ -188,7 +185,7 @@ export default function AuthScreen({ navigation }) {
 
             <View style={s.fieldWrap}>
               <View style={s.fieldLabelRow}>
-                <Text style={s.fieldLabel}>PASSWORD</Text>
+                <Text style={s.fieldLabel}>Password</Text>
                 {tab === 'login' && (
                   <TouchableOpacity onPress={handleForgotPassword}>
                     <Text style={s.forgotText}>Forgot?</Text>
@@ -235,6 +232,17 @@ export default function AuthScreen({ navigation }) {
             <View style={s.orLine} />
           </View>
 
+          {/* Apple */}
+          <TouchableOpacity
+            style={s.appleBtn}
+            onPress={handleAppleSignIn}
+            activeOpacity={0.8}
+            disabled={loading}
+          >
+            <Text style={s.appleIcon}>{'\uF8FF'}</Text>
+            <Text style={s.appleText}>Continue with Apple</Text>
+          </TouchableOpacity>
+
           {/* Google */}
           <TouchableOpacity
             style={s.googleBtn}
@@ -257,36 +265,14 @@ export default function AuthScreen({ navigation }) {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.black },
 
-  // Background decoration
-  bgDecor: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
-  bgCircle: { position: 'absolute', borderRadius: 999 },
-  bgCircle1: {
-    width: SCREEN_W * 0.8, height: SCREEN_W * 0.8,
-    backgroundColor: C.limeGlowSm,
-    top: -SCREEN_W * 0.3, right: -SCREEN_W * 0.2,
-    borderWidth: 1, borderColor: C.lime + '10',
-  },
-  bgCircle2: {
-    width: SCREEN_W * 0.5, height: SCREEN_W * 0.5,
-    backgroundColor: C.limeGlowSm,
-    bottom: SCREEN_W * 0.3, left: -SCREEN_W * 0.2,
-    borderWidth: 1, borderColor: C.lime + '08',
-  },
-  bgCircle3: {
-    width: 80, height: 80,
-    backgroundColor: C.limeGlow,
-    top: 160, left: SCREEN_W * 0.1,
-    borderWidth: 1, borderColor: C.lime + '25',
-  },
-
   scroll: { padding: SPACING.lg, paddingTop: SPACING.xl },
 
   // Logo
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: SPACING.xxl },
   logoMark: {
     width: 44, height: 44, borderRadius: RADIUS.sm,
-    backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center',
-    ...SHADOW.lime,
+    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
+    ...SHADOW.accent,
   },
   logoMarkText: { fontSize: 24, fontWeight: '900', color: C.textInverse },
   logoName:    { fontSize: 19, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
@@ -298,16 +284,6 @@ const s = StyleSheet.create({
     fontSize: 52, fontWeight: '900', color: C.textPrimary,
     lineHeight: 56, letterSpacing: -2, marginBottom: SPACING.sm,
   },
-  heroBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: C.limeGlow, borderRadius: RADIUS.full,
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: C.lime + '35',
-    marginBottom: SPACING.sm,
-  },
-  heroBadgeDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: C.lime },
-  heroBadgeText: { fontSize: 9, fontWeight: '800', color: C.lime, letterSpacing: 1.5 },
   heroSub: { fontSize: 15, color: C.textSecondary, lineHeight: 22 },
 
   // Tab switcher
@@ -336,7 +312,7 @@ const s = StyleSheet.create({
   fieldWrap: { gap: 7 },
   fieldLabel: { fontSize: 9, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.8 },
   fieldLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  forgotText: { fontSize: 12, color: C.lime, fontWeight: '600' },
+  forgotText: { fontSize: 12, color: C.accent, fontWeight: '600' },
   input: {
     backgroundColor: C.surface1, borderWidth: 1, borderColor: C.border,
     borderRadius: RADIUS.md, paddingHorizontal: 16, paddingVertical: 15,
@@ -346,11 +322,11 @@ const s = StyleSheet.create({
   // CTA button
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.lime, borderRadius: RADIUS.full,
+    backgroundColor: C.accent, borderRadius: RADIUS.full,
     paddingLeft: SPACING.lg, paddingRight: 8, paddingVertical: 8,
     marginBottom: SPACING.md,
     minHeight: 60,
-    ...SHADOW.lime,
+    ...SHADOW.accent,
   },
   ctaBtnDisabled: { opacity: 0.7 },
   ctaBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
@@ -365,6 +341,15 @@ const s = StyleSheet.create({
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: SPACING.sm },
   orLine: { flex: 1, height: 1, backgroundColor: C.border },
   orText: { fontSize: 10, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.2 },
+
+  // Apple
+  appleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: '#FFFFFF', borderRadius: RADIUS.md, paddingVertical: 15,
+    marginBottom: 10,
+  },
+  appleIcon: { fontSize: 20, color: '#000000' },
+  appleText: { fontSize: 15, fontWeight: '600', color: '#000000' },
 
   // Google
   googleBtn: {

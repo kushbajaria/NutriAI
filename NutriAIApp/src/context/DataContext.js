@@ -13,8 +13,9 @@ import {
   getAllRecipes,
   updateUserProfile,
   addReviewToFirestore,
-  setWaterIntake,
-  subscribeWater,
+  addWaterEntry,
+  removeLastWaterEntry,
+  subscribeWaterDay,
 } from '../services/firestore';
 import { cacheRecipes, getCachedRecipes, cacheUserData, getCachedUserData } from '../services/cache';
 import { hapticSuccess, hapticMedium, hapticSelection } from '../utils/haptics';
@@ -63,6 +64,17 @@ function calculateMacroGoals(calGoal, goal) {
     carbsGoal:   Math.round(calGoal * 0.50 / 4),
     fatGoal:     Math.round(calGoal * 0.25 / 9),
   };
+}
+
+// ── Water Goal Calculation ───────────────────────────────────────
+const WATER_SIZES = { Small: 8, Glass: 12, Bottle: 16, Large: 32 };
+
+function calculateWaterGoalOz(weightStr, units, hasWorkoutToday) {
+  const w = parseFloat(weightStr);
+  if (!w) return 64; // fallback 64oz
+  let goalOz = units === 'Imperial' ? w / 2 : (w * 35) / 29.5735;
+  if (hasWorkoutToday) goalOz += 16;
+  return Math.round(goalOz);
 }
 
 // ── Meal scoring (same algorithm as before) ──────────────────────
@@ -114,8 +126,7 @@ export function DataProvider({ children }) {
   const [recipesLoaded, setRecipesLoaded] = useState(false);
   const [reviews, setReviews]      = useState(MOCK_REVIEWS || {});
   const [calGoalOverride, setCalGoalOverride] = useState(null);
-  const [waterGlasses, setWaterGlasses] = useState(0);
-  const waterGoal = 8;
+  const [waterData, setWaterData] = useState({ totalOz: 0, entries: [], glasses: 0 });
   const [healthKitEnabled, setHealthKitEnabled] = useState(false);
   const [todaySteps, setTodaySteps] = useState(0);
   const [todayActiveCal, setTodayActiveCal] = useState(0);
@@ -215,8 +226,8 @@ export function DataProvider({ children }) {
         setCompletedWorkouts(workouts);
         cacheUserData('workouts', workouts);
       }, onSubError('Workouts')),
-      subscribeWater(user.uid, new Date().toDateString(), (glasses) => {
-        setWaterGlasses(glasses);
+      subscribeWaterDay(user.uid, new Date().toDateString(), (data) => {
+        setWaterData(data);
       }, onSubError('Water')),
     ];
 
@@ -292,14 +303,15 @@ export function DataProvider({ children }) {
 
   const recordActivity = useCallback(async () => {
     const today = new Date().toDateString();
-    if (streakData.activityDates.includes(today)) return;
+    const dates = streakData?.activityDates || [];
+    if (dates.includes(today)) return;
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const continued = streakData.activityDates.includes(yesterday.toDateString());
+    const continued = dates.includes(yesterday.toDateString());
 
     // Prune activityDates to last 60 entries
-    const prunedDates = [...streakData.activityDates, today].slice(-60);
+    const prunedDates = [...dates, today].slice(-60);
 
     const newStreak = {
       count:         continued ? streakData.count + 1 : 1,
@@ -327,7 +339,7 @@ export function DataProvider({ children }) {
       if (user?.uid) {
         await logMealToFirestore(user.uid, {
           name: recipe.name,
-          emoji: recipe.emoji,
+          icon: recipe.icon,
           cal: recipe.cal,
           protein: recipe.protein,
           carbs: recipe.carbs,
@@ -407,31 +419,51 @@ export function DataProvider({ children }) {
   const calGoal = calGoalOverride || calculateTDEE(age, height, weight, units, goal);
   const macroGoals = useMemo(() => calculateMacroGoals(calGoal, goal), [calGoal, goal]);
 
-  const addWater = useCallback(async () => {
+  // Water goal — personalized by weight, bumped on workout days
+  const todayStr2 = new Date().toDateString();
+  const todaysWorkoutCount = useMemo(
+    () => completedWorkouts.filter(w => w.date === todayStr2).length,
+    [completedWorkouts, todayStr2]
+  );
+  const waterGoalOz = useMemo(
+    () => calculateWaterGoalOz(weight, units, todaysWorkoutCount > 0),
+    [weight, units, todaysWorkoutCount]
+  );
+
+  const addWater = useCallback(async (sizeLabel = 'Glass') => {
+    const oz = WATER_SIZES[sizeLabel] || 12;
     hapticSelection();
-    const newCount = waterGlasses + 1;
-    setWaterGlasses(newCount);
     if (user?.uid) {
       try {
-        await setWaterIntake(user.uid, new Date().toDateString(), newCount);
+        // Check milestones before the write (subscription will update state)
+        const pctBefore = waterData.totalOz / waterGoalOz;
+        const pctAfter = (waterData.totalOz + oz) / waterGoalOz;
+        await addWaterEntry(user.uid, new Date().toDateString(), { oz, label: sizeLabel });
+        if (pctBefore < 0.5 && pctAfter >= 0.5) {
+          hapticMedium();
+          showToast('Halfway there! Keep drinking.');
+        }
+        if (pctBefore < 1.0 && pctAfter >= 1.0) {
+          hapticSuccess();
+          showToast('Water goal hit! Great job.');
+          await recordActivity();
+        }
       } catch (err) {
         console.warn('Failed to save water:', err.message);
       }
     }
-  }, [waterGlasses, user?.uid]);
+  }, [waterData.totalOz, waterGoalOz, user?.uid, showToast, recordActivity]);
 
   const removeWater = useCallback(async () => {
     hapticSelection();
-    const newCount = Math.max(0, waterGlasses - 1);
-    setWaterGlasses(newCount);
     if (user?.uid) {
       try {
-        await setWaterIntake(user.uid, new Date().toDateString(), newCount);
+        await removeLastWaterEntry(user.uid, new Date().toDateString());
       } catch (err) {
-        console.warn('Failed to save water:', err.message);
+        console.warn('Failed to remove water:', err.message);
       }
     }
-  }, [waterGlasses, user?.uid]);
+  }, [user?.uid]);
 
   const setCalGoal = useCallback(async (val) => {
     const num = parseInt(val, 10);
@@ -463,7 +495,7 @@ export function DataProvider({ children }) {
       recipes, recipesLoaded,
       reviews, addReview,
       pantryMeals,
-      waterGlasses, waterGoal, addWater, removeWater,
+      waterData, waterGoalOz, addWater, removeWater,
       healthKitEnabled, todaySteps, todayActiveCal,
     }}>
       {children}

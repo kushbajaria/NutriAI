@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { getRecipeReviews } from '../services/firestore';
-import { Badge, SectionHeader, GlowDot } from '../components/UI';
+import { Badge, SectionHeader } from '../components/UI';
+import Icon from '../components/Icon';
 
 // ── STAR ROW ───────────────────────────────────────────────────────
 function StarRow({ value, size = 15, onPress }) {
@@ -36,7 +37,7 @@ function ReviewCard({ review }) {
   return (
     <View style={s.reviewCard}>
       <View style={s.reviewTop}>
-        <View style={[s.reviewAvatar, review.isOwn && { backgroundColor: C.lime }]}>
+        <View style={[s.reviewAvatar, review.isOwn && { backgroundColor: C.accent }]}>
           <Text style={[s.reviewAvatarText, review.isOwn && { color: C.textInverse }]}>
             {review.avatar}
           </Text>
@@ -82,11 +83,11 @@ function RecipeCard({ recipe: r, recipeReviews, onPress }) {
       {/* Header row */}
       <View style={s.cardHeader}>
         <View style={s.emojiWrap}>
-          <Text style={s.emoji}>{r.emoji}</Text>
+          <Icon name={r.icon} size={24} color={C.accent} />
         </View>
         <View style={s.cardHeaderRight}>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-            <Badge label={r.tag} color={C.lime} />
+            <Badge label={r.tag} color={C.accent} />
             {hasMatchData && allAvailable && (
               <Badge label="Can Make" color={C.green} />
             )}
@@ -107,9 +108,9 @@ function RecipeCard({ recipe: r, recipeReviews, onPress }) {
       {/* Name + meta chips */}
       <Text style={s.recipeName}>{r.name}</Text>
       <View style={s.metaRow}>
-        <View style={s.metaChip}><Text style={s.metaChipText}>🔥 {r.cal} cal</Text></View>
-        <View style={s.metaChip}><Text style={s.metaChipText}>💪 {r.protein}g protein</Text></View>
-        <View style={s.metaChip}><Text style={s.metaChipText}>⏱ {r.prepTime + r.cookTime}m</Text></View>
+        <View style={s.metaChip}><Icon name="flame-outline" size={12} color={C.accent} /><Text style={s.metaChipText}>{r.cal} cal</Text></View>
+        <View style={s.metaChip}><Icon name="barbell-outline" size={12} color={C.protein} /><Text style={s.metaChipText}>{r.protein}g protein</Text></View>
+        <View style={s.metaChip}><Icon name="time-outline" size={12} color={C.textTertiary} /><Text style={s.metaChipText}>{r.prepTime + r.cookTime}m</Text></View>
       </View>
 
       {/* Macro bars */}
@@ -157,19 +158,13 @@ export function MealsScreen({ navigation }) {
 
       {/* Header */}
       <View style={s.header}>
-        <View>
-          <View style={s.eyebrowRow}>
-            <GlowDot size={6} />
-            <Text style={s.eyebrow}>PERSONALISED</Text>
-          </View>
-          <Text style={s.headerTitle}>Meal Planner</Text>
-        </View>
+        <Text style={s.headerTitle}>Meal Planner</Text>
         <View style={s.headerBadges}>
           <View style={s.infoBadge}>
             <Text style={s.infoBadgeText}>{pantry.length} items in pantry</Text>
           </View>
           <View style={[s.infoBadge, s.infoBadgeAccent]}>
-            <Text style={[s.infoBadgeText, { color: C.lime }]}>
+            <Text style={[s.infoBadgeText, { color: C.accent }]}>
               {GOAL_LABELS[goal] || goal}
             </Text>
           </View>
@@ -183,7 +178,7 @@ export function MealsScreen({ navigation }) {
       >
 
         {/* From your pantry */}
-        <SectionHeader title={`FROM YOUR PANTRY · ${canMake.length}`} />
+        <SectionHeader title={`From Your Pantry · ${canMake.length}`} />
         {canMake.length === 0 ? (
           <View style={s.emptyCard}>
             <Text style={s.emptyIcon}>🛒</Text>
@@ -206,7 +201,7 @@ export function MealsScreen({ navigation }) {
         {/* Discover more */}
         {discover.length > 0 && (
           <>
-            <SectionHeader title={`DISCOVER MORE · ${discover.length}`} />
+            <SectionHeader title={`Discover More · ${discover.length}`} />
             {discover.map(r => (
               <RecipeCard
                 key={r.id}
@@ -327,14 +322,22 @@ export function RecipeScreen({ navigation, route }) {
           {/* Hero */}
           <View style={rs.hero}>
             <View style={rs.heroEmoji}>
-              <Text style={rs.heroEmojiText}>{r.emoji}</Text>
+              <Icon name={r.icon} size={36} color={C.accent} />
             </View>
             <View style={rs.heroInfo}>
-              <Badge label={r.tag} color={C.lime} />
+              <Badge label={r.tag} color={C.accent} />
               <Text style={rs.heroTitle}>{r.name}</Text>
               <View style={rs.chipRow}>
-                {[`⏱ ${r.prepTime}m prep`, `🔥 ${r.cookTime}m cook`, `🍽 ${r.servings} srv`, r.diff].map(c => (
-                  <View key={c} style={rs.chip}><Text style={rs.chipText}>{c}</Text></View>
+                {[
+                  { icon: 'time-outline', text: `${r.prepTime}m prep` },
+                  { icon: 'flame-outline', text: `${r.cookTime}m cook` },
+                  { icon: 'people-outline', text: `${r.servings} srv` },
+                  { icon: null, text: r.diff },
+                ].map(c => (
+                  <View key={c.text} style={rs.chip}>
+                    {c.icon && <Icon name={c.icon} size={12} color={C.textSecondary} />}
+                    <Text style={rs.chipText}>{c.text}</Text>
+                  </View>
                 ))}
               </View>
               {avgRating > 0 && (
@@ -360,7 +363,7 @@ export function RecipeScreen({ navigation, route }) {
               ]}>
                 <Text style={[
                   rs.matchIcon,
-                  { color: allHave ? C.green : someHave ? C.lime : C.fat },
+                  { color: allHave ? C.green : someHave ? C.accent : C.fat },
                 ]}>
                   {allHave ? '✓' : someHave ? '~' : '!'}
                 </Text>
@@ -376,7 +379,7 @@ export function RecipeScreen({ navigation, route }) {
                     </Text>
                   )}
                 </View>
-                <Text style={[rs.matchPct, { color: allHave ? C.green : someHave ? C.lime : C.fat }]}>
+                <Text style={[rs.matchPct, { color: allHave ? C.green : someHave ? C.accent : C.fat }]}>
                   {matchPct}%
                 </Text>
               </View>
@@ -386,7 +389,7 @@ export function RecipeScreen({ navigation, route }) {
             <Text style={rs.sectionLabel}>NUTRITION</Text>
             <View style={rs.nutriGrid}>
               {[
-                { val: r.cal,     unit: '',  label: 'Calories', color: C.lime    },
+                { val: r.cal,     unit: '',  label: 'Calories', color: C.accent    },
                 { val: r.protein, unit: 'g', label: 'Protein',  color: C.protein },
                 { val: r.carbs,   unit: 'g', label: 'Carbs',    color: C.carbs   },
                 { val: r.fat,     unit: 'g', label: 'Fat',      color: C.fat     },
@@ -503,7 +506,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   eyebrowRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  eyebrow:     { fontSize: 9, fontWeight: '700', color: C.lime, letterSpacing: 2 },
+  eyebrow:     { fontSize: 9, fontWeight: '700', color: C.accent, letterSpacing: 2 },
   headerTitle: { fontSize: 26, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
 
   headerBadges: { gap: 6, alignItems: 'flex-end', marginTop: 4 },
@@ -512,7 +515,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
     borderWidth: 1, borderColor: C.border,
   },
-  infoBadgeAccent: { borderColor: C.lime + '40', backgroundColor: C.limeGlowSm },
+  infoBadgeAccent: { borderColor: C.accent + '40', backgroundColor: C.accentBgSm },
   infoBadgeText:   { fontSize: 11, fontWeight: '600', color: C.textSecondary },
 
   scroll:        { flex: 1 },
@@ -548,7 +551,7 @@ const s = StyleSheet.create({
 
   cardFooter:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: C.border, paddingTop: 10 },
   footerServings: { fontSize: 12, color: C.textTertiary, fontWeight: '500' },
-  viewBtnText:    { fontSize: 13, color: C.lime, fontWeight: '700' },
+  viewBtnText:    { fontSize: 13, color: C.accent, fontWeight: '700' },
 
   // Review card
   reviewCard: {
@@ -580,7 +583,7 @@ const rs = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: C.black },
   errorWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
   errorText: { fontSize: 16, color: C.textSecondary },
-  errorBtn:  { backgroundColor: C.lime, borderRadius: RADIUS.full, paddingHorizontal: 24, paddingVertical: 12 },
+  errorBtn:  { backgroundColor: C.accent, borderRadius: RADIUS.full, paddingHorizontal: 24, paddingVertical: 12 },
   errorBtnText: { fontSize: 14, fontWeight: '700', color: C.textInverse },
 
   navbar: {
@@ -589,7 +592,7 @@ const rs = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   backBtn:     { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
-  backBtnText: { fontSize: 18, color: C.lime, marginTop: -1 },
+  backBtnText: { fontSize: 18, color: C.accent, marginTop: -1 },
   navTitle:    { fontSize: 16, fontWeight: '700', color: C.textPrimary, flex: 1, textAlign: 'center', marginHorizontal: 8 },
 
   hero: {
@@ -618,7 +621,7 @@ const rs = StyleSheet.create({
     borderWidth: 1, marginBottom: SPACING.lg,
   },
   matchBannerGreen:  { backgroundColor: C.green  + '0D', borderColor: C.green  + '30' },
-  matchBannerBlue:   { backgroundColor: C.limeGlowSm,    borderColor: C.lime   + '30' },
+  matchBannerBlue:   { backgroundColor: C.accentBgSm,    borderColor: C.accent   + '30' },
   matchBannerOrange: { backgroundColor: C.fat    + '0D', borderColor: C.fat    + '30' },
   matchIcon:  { fontSize: 16, fontWeight: '800', width: 20, textAlign: 'center' },
   matchTitle: { fontSize: 13, fontWeight: '600', color: C.textPrimary, marginBottom: 2 },
@@ -644,7 +647,7 @@ const rs = StyleSheet.create({
 
   steps:       { gap: 10, marginBottom: SPACING.lg },
   step:        { flexDirection: 'row', gap: 14, backgroundColor: C.surface1, borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, borderColor: C.border },
-  stepNum:     { width: 28, height: 28, borderRadius: 14, backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center', flexShrink: 0, ...SHADOW.lime },
+  stepNum:     { width: 28, height: 28, borderRadius: 14, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', flexShrink: 0, ...SHADOW.accent },
   stepNumText: { fontSize: 12, fontWeight: '900', color: C.textInverse },
   stepText:    { fontSize: 14, color: C.textSecondary, lineHeight: 22, flex: 1, paddingTop: 3 },
 
@@ -675,18 +678,18 @@ const rs = StyleSheet.create({
     minHeight: 80,
   },
   submitBtn: {
-    backgroundColor: C.lime, borderRadius: RADIUS.full,
+    backgroundColor: C.accent, borderRadius: RADIUS.full,
     paddingVertical: 14, alignItems: 'center',
-    ...SHADOW.lime,
+    ...SHADOW.accent,
   },
   submitBtnText: { fontSize: 14, fontWeight: '800', color: C.textInverse },
 
   reviewedBanner: {
-    backgroundColor: C.limeGlowSm, borderRadius: RADIUS.md,
+    backgroundColor: C.accentBgSm, borderRadius: RADIUS.md,
     padding: 14, alignItems: 'center', marginTop: 8,
-    borderWidth: 1, borderColor: C.lime + '30',
+    borderWidth: 1, borderColor: C.accent + '30',
   },
-  reviewedText: { fontSize: 13, fontWeight: '600', color: C.lime },
+  reviewedText: { fontSize: 13, fontWeight: '600', color: C.accent },
 
   // Action bar
   actionBar: {
@@ -697,6 +700,6 @@ const rs = StyleSheet.create({
   },
   ghostBtn:     { width: 80, height: 52, borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
   ghostBtnText: { fontSize: 14, color: C.textSecondary, fontWeight: '600' },
-  logBtn:       { flex: 1, height: 52, backgroundColor: C.lime, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center', ...SHADOW.lime },
+  logBtn:       { flex: 1, height: 52, backgroundColor: C.accent, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center', ...SHADOW.accent },
   logBtnText:   { fontSize: 15, fontWeight: '800', color: C.textInverse },
 });

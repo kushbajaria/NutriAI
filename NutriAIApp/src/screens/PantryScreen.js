@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, KeyboardAvoidingView, Platform,
@@ -7,33 +7,38 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { COMMON_INGREDIENTS } from '../constants/data';
 import { useApp } from '../context/AppContext';
-import { SectionHeader, GlowDot, PillButton } from '../components/UI';
+import { SectionHeader, PillButton } from '../components/UI';
+import Icon from '../components/Icon';
 import { hapticSelection } from '../utils/haptics';
 
 export default function PantryScreen({ navigation }) {
   const { pantry, setPantry } = useApp();
   const [input, setInput] = useState('');
 
-  const add = () => {
-    const v = input.trim().toLowerCase();
-    if (v && !pantry.includes(v)) { hapticSelection(); setPantry([...pantry, v]); setInput(''); }
+  const add = (value) => {
+    const v = (value || input).trim().toLowerCase();
+    if (v && !pantry.includes(v)) { hapticSelection(); setPantry([...pantry, v]); }
+    setInput('');
   };
   const remove    = item => { hapticSelection(); setPantry(pantry.filter(p => p !== item)); };
   const addCommon = item => { if (!pantry.includes(item)) { hapticSelection(); setPantry([...pantry, item]); } };
-  const available = COMMON_INGREDIENTS.filter(c => !pantry.includes(c)).slice(0, 14);
+  const available = COMMON_INGREDIENTS.filter(c => !pantry.includes(c));
+
+  // Autocomplete suggestions filtered by input
+  const suggestions = useMemo(() => {
+    const q = input.trim().toLowerCase();
+    if (q.length < 1) return [];
+    return COMMON_INGREDIENTS
+      .filter(c => c.includes(q) && !pantry.includes(c))
+      .slice(0, 6);
+  }, [input, pantry]);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
 
       {/* Header */}
       <View style={s.header}>
-        <View>
-          <View style={s.eyebrowRow}>
-            <GlowDot size={6} />
-            <Text style={s.eyebrow}>MANAGE</Text>
-          </View>
-          <Text style={s.headerTitle}>Pantry</Text>
-        </View>
+        <Text style={s.headerTitle}>Pantry</Text>
         <View style={s.countBadge}>
           <Text style={s.countVal}>{pantry.length}</Text>
           <Text style={s.countLbl}>items</Text>
@@ -56,19 +61,36 @@ export default function PantryScreen({ navigation }) {
               placeholderTextColor={C.textTertiary}
               value={input}
               onChangeText={setInput}
-              onSubmitEditing={add}
+              onSubmitEditing={() => add()}
               returnKeyType="done"
             />
-            <TouchableOpacity style={s.addBtn} onPress={add} activeOpacity={0.8}>
+            <TouchableOpacity style={s.addBtn} onPress={() => add()} activeOpacity={0.8}>
               <Text style={s.addBtnText}>+</Text>
             </TouchableOpacity>
           </View>
 
+          {/* Autocomplete dropdown */}
+          {suggestions.length > 0 && (
+            <View style={s.dropdown}>
+              {suggestions.map(item => (
+                <TouchableOpacity
+                  key={item}
+                  style={s.dropdownItem}
+                  onPress={() => add(item)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.dropdownPlus}>+</Text>
+                  <Text style={s.dropdownText}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {/* Current pantry */}
-          <SectionHeader title={`YOUR PANTRY · ${pantry.length} ITEMS`} />
+          <SectionHeader title={`Your Pantry · ${pantry.length} items`} />
           {pantry.length === 0 ? (
             <View style={s.emptyState}>
-              <Text style={s.emptyIcon}>🛒</Text>
+              <Icon name="basket-outline" size={40} color={C.textTertiary} />
               <Text style={s.emptyText}>Your pantry is empty</Text>
               <Text style={s.emptySub}>Add ingredients to get smart meal suggestions</Text>
             </View>
@@ -89,7 +111,7 @@ export default function PantryScreen({ navigation }) {
           )}
 
           {/* Quick add */}
-          <SectionHeader title="QUICK ADD" />
+          <SectionHeader title="Quick Add" />
           <View style={s.tagCloud}>
             {available.map(item => (
               <TouchableOpacity
@@ -126,22 +148,22 @@ const s = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   eyebrowRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  eyebrow:     { fontSize: 9, fontWeight: '700', color: C.lime, letterSpacing: 2 },
+  eyebrow:     { fontSize: 9, fontWeight: '700', color: C.accent, letterSpacing: 2 },
   headerTitle: { fontSize: 26, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
   countBadge: {
-    backgroundColor: C.limeGlow, borderRadius: RADIUS.md,
+    backgroundColor: C.accentBg, borderRadius: RADIUS.md,
     paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1, borderColor: C.lime + '30',
+    borderWidth: 1, borderColor: C.accent + '30',
     alignItems: 'center', marginTop: 4,
   },
-  countVal: { fontSize: 20, fontWeight: '900', color: C.lime, letterSpacing: -0.5 },
-  countLbl: { fontSize: 9, fontWeight: '700', color: C.limeDim, letterSpacing: 0.5 },
+  countVal: { fontSize: 20, fontWeight: '900', color: C.accent, letterSpacing: -0.5 },
+  countLbl: { fontSize: 9, fontWeight: '700', color: C.accentDim, letterSpacing: 0.5 },
 
   scroll:        { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
 
   // Add row
-  addRow:  { flexDirection: 'row', gap: 10, marginBottom: SPACING.lg },
+  addRow:  { flexDirection: 'row', gap: 10, marginBottom: 8 },
   addInput: {
     flex: 1, backgroundColor: C.surface1,
     borderWidth: 1, borderColor: C.border,
@@ -150,12 +172,28 @@ const s = StyleSheet.create({
     color: C.textPrimary, fontSize: 15,
   },
   addBtn: {
-    width: 50, backgroundColor: C.lime,
+    width: 50, backgroundColor: C.accent,
     borderRadius: RADIUS.md,
     alignItems: 'center', justifyContent: 'center',
-    ...SHADOW.lime,
+    ...SHADOW.accent,
   },
   addBtnText: { fontSize: 24, fontWeight: '700', color: C.textInverse, marginTop: -2 },
+
+  // Dropdown
+  dropdown: {
+    backgroundColor: C.surface1,
+    borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: C.border,
+  },
+  dropdownPlus: { fontSize: 14, fontWeight: '900', color: C.accent },
+  dropdownText: { fontSize: 14, color: C.textPrimary, fontWeight: '500' },
 
   // Empty state
   emptyState: {
@@ -183,6 +221,6 @@ const s = StyleSheet.create({
     backgroundColor: C.surface1, borderWidth: 1, borderColor: C.border,
     borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 8,
   },
-  commonPlus: { fontSize: 14, fontWeight: '900', color: C.lime },
+  commonPlus: { fontSize: 14, fontWeight: '900', color: C.accent },
   commonText: { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
 });

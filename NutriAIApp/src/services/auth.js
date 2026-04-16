@@ -1,5 +1,6 @@
 import auth from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { appleAuth } from '@invertase/react-native-apple-authentication';
 import { deleteUserData } from './firestore';
 import { clearAllCache } from './cache';
 
@@ -33,6 +34,30 @@ export async function signInWithGoogle() {
   if (!idToken) throw new Error('Google Sign-In failed: no ID token');
   const googleCredential = auth.GoogleAuthProvider.credential(idToken);
   const { user } = await auth().signInWithCredential(googleCredential);
+  return user;
+}
+
+export async function signInWithApple() {
+  const appleAuthResponse = await appleAuth.performRequest({
+    requestedOperation: appleAuth.Operation.LOGIN,
+    requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
+  });
+
+  if (!appleAuthResponse.identityToken) {
+    throw new Error('Apple Sign-In failed: no identity token');
+  }
+
+  const { identityToken, nonce } = appleAuthResponse;
+  const appleCredential = auth.AppleAuthProvider.credential(identityToken, nonce);
+  const { user } = await auth().signInWithCredential(appleCredential);
+
+  // Apple only sends name on first sign-in, so save it
+  if (appleAuthResponse.fullName?.givenName && !user.displayName) {
+    const displayName = [appleAuthResponse.fullName.givenName, appleAuthResponse.fullName.familyName]
+      .filter(Boolean).join(' ');
+    await user.updateProfile({ displayName });
+  }
+
   return user;
 }
 

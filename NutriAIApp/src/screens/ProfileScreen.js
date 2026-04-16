@@ -1,23 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Linking, Share, ActivityIndicator,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Image,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Linking, Share, ActivityIndicator, Alert,
 } from 'react-native';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { useUI } from '../context/UIContext';
-import { signOutUser } from '../services/auth';
-import { exportUserData } from '../services/firestore';
-import { Badge, SectionHeader, GlowDot } from '../components/UI';
+import { signOutUser, deleteAccount, reauthenticateWithPassword } from '../services/auth';
+import { exportUserData, updateUserProfile } from '../services/firestore';
+import { Badge, SectionHeader } from '../components/UI';
+import Icon from '../components/Icon';
 
 const GOALS = ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Boost Energy'];
 const DIETS = ['No Restrictions', 'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Keto', 'Paleo'];
 
-const GOAL_EMOJI = { 'Lose Weight': '🔥', 'Build Muscle': '💪', 'Stay Healthy': '🧘', 'Boost Energy': '⚡' };
-const DIET_EMOJI = {
-  'No Restrictions': '🍽️', Vegetarian: '🥦', Vegan: '🌱',
-  'Gluten-Free': '🌾', 'Dairy-Free': '🥛', Keto: '🥑', Paleo: '🍖',
+const GOAL_ICONS = { 'Lose Weight': 'flame-outline', 'Build Muscle': 'barbell-outline', 'Stay Healthy': 'heart-outline', 'Boost Energy': 'flash-outline' };
+const DIET_ICONS = {
+  'No Restrictions': 'restaurant-outline', Vegetarian: 'leaf-outline', Vegan: 'leaf-outline',
+  'Gluten-Free': 'nutrition-outline', 'Dairy-Free': 'water-outline', Keto: 'fish-outline', Paleo: 'flame-outline',
 };
 
 // ── BOTTOM SHEET WRAPPER ───────────────────────────────────────────
@@ -38,7 +40,7 @@ function Sheet({ visible, onClose, title, children }) {
 }
 
 // ── OPTION LIST (goal / diet picker) ──────────────────────────────
-function OptionList({ options, selected, emojiMap, onSelect }) {
+function OptionList({ options, selected, iconMap, onSelect }) {
   return (
     <View style={ps.optionList}>
       {options.map(opt => {
@@ -50,7 +52,7 @@ function OptionList({ options, selected, emojiMap, onSelect }) {
             onPress={() => onSelect(opt)}
             activeOpacity={0.75}
           >
-            <Text style={ps.optionEmoji}>{emojiMap[opt]}</Text>
+            <Icon name={iconMap[opt]} size={20} color={active ? C.accent : C.textSecondary} />
             <Text style={[ps.optionLabel, active && ps.optionLabelActive]}>{opt}</Text>
             {active && <View style={ps.optionCheck}><Text style={ps.optionCheckMark}>✓</Text></View>}
           </TouchableOpacity>
@@ -121,12 +123,63 @@ export default function ProfileScreen({ navigation }) {
     diet, setDiet,
     units, setUnits,
     calGoal, setCalGoal,
-    loggedMeals, completedWorkouts, user,
+    loggedMeals, completedWorkouts, user, profile, refreshProfile,
     healthKitEnabled,
   } = useApp();
 
-  const [activeSheet, setActiveSheet] = useState(null); // 'goal'|'diet'|'age'|'height'|'weight'|'privacy'|'about'
+  const profilePhoto = profile?.profilePhoto || null;
+
+  const [activeSheet, setActiveSheet] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+
+  const handlePickPhoto = useCallback(() => {
+    Alert.alert('Profile Photo', 'Choose a source', [
+      {
+        text: 'Camera',
+        onPress: () => pickImage(launchCamera),
+      },
+      {
+        text: 'Photo Library',
+        onPress: () => pickImage(launchImageLibrary),
+      },
+      profilePhoto ? {
+        text: 'Remove Photo',
+        style: 'destructive',
+        onPress: async () => {
+          if (!user?.uid) return;
+          setPhotoLoading(true);
+          try {
+            await updateUserProfile(user.uid, { profilePhoto: null });
+            await refreshProfile();
+          } catch {} finally { setPhotoLoading(false); }
+        },
+      } : null,
+      { text: 'Cancel', style: 'cancel' },
+    ].filter(Boolean));
+  }, [profilePhoto, user?.uid, refreshProfile]);
+
+  const pickImage = useCallback(async (launcher) => {
+    try {
+      const result = await launcher({
+        mediaType: 'photo',
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.7,
+        includeBase64: true,
+      });
+      if (result.didCancel || !result.assets?.[0]?.base64) return;
+      const base64 = `data:${result.assets[0].type || 'image/jpeg'};base64,${result.assets[0].base64}`;
+      if (!user?.uid) return;
+      setPhotoLoading(true);
+      await updateUserProfile(user.uid, { profilePhoto: base64 });
+      await refreshProfile();
+    } catch (err) {
+      console.warn('Photo pick error:', err.message);
+    } finally {
+      setPhotoLoading(false);
+    }
+  }, [user?.uid, refreshProfile]);
 
   const signOut = async () => {
     try { await signOutUser(); } catch (e) { console.warn('Sign out error:', e); }
@@ -146,6 +199,61 @@ export default function ProfileScreen({ navigation }) {
       setExporting(false);
     }
   };
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            // For email/password users, prompt for password re-auth
+            const currentUser = require('@react-native-firebase/auth').default().currentUser;
+            const isEmailUser = currentUser?.providerData?.some(p => p.providerId === 'password');
+
+            if (isEmailUser) {
+              Alert.prompt(
+                'Confirm Password',
+                'Enter your password to confirm account deletion.',
+                async (password) => {
+                  if (!password) return;
+                  setDeleting(true);
+                  try {
+                    await reauthenticateWithPassword(password);
+                    await deleteAccount();
+                  } catch (err) {
+                    setDeleting(false);
+                    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                      showToast('Incorrect password.');
+                    } else {
+                      showToast('Failed to delete account. Try again.');
+                    }
+                  }
+                },
+                'secure-text'
+              );
+            } else {
+              // Google/Apple users — Firebase may require recent auth
+              setDeleting(true);
+              deleteAccount().catch(err => {
+                setDeleting(false);
+                if (err.code === 'auth/requires-recent-login') {
+                  showToast('Please sign out and sign back in, then try again.');
+                } else {
+                  showToast('Failed to delete account. Try again.');
+                }
+              });
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const displayName = user?.displayName || user?.name || 'User';
   const firstName   = displayName.split(' ')[0];
   const initial     = firstName[0]?.toUpperCase();
@@ -162,7 +270,7 @@ export default function ProfileScreen({ navigation }) {
     ...completedWorkouts.filter(w => last7.includes(w.date)).map(w => w.date),
   ]).size;
   const stats = [
-    { val: loggedMeals.length, lbl: 'Meals',    color: C.lime    },
+    { val: loggedMeals.length, lbl: 'Meals',    color: C.accent    },
     { val: workoutCount,       lbl: 'Workouts',  color: C.blue    },
     { val: activeDays > 0 ? `${Math.round((activeDays / 7) * 100)}%` : '—', lbl: 'Active', color: C.protein },
   ];
@@ -192,16 +300,26 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Avatar block */}
         <View style={ps.avatarBlock}>
-          <View style={ps.avatarRing}>
-            <View style={ps.avatar}>
-              <Text style={ps.avatarInitial}>{initial}</Text>
+          <TouchableOpacity style={ps.avatarRing} onPress={handlePickPhoto} activeOpacity={0.8}>
+            {profilePhoto ? (
+              <Image source={{ uri: profilePhoto }} style={ps.avatarImage} />
+            ) : (
+              <View style={ps.avatar}>
+                <Text style={ps.avatarInitial}>{initial}</Text>
+              </View>
+            )}
+            <View style={ps.avatarCameraBadge}>
+              {photoLoading ? (
+                <ActivityIndicator size="small" color={C.textInverse} />
+              ) : (
+                <Icon name="camera" size={14} color={C.textInverse} />
+              )}
             </View>
-          </View>
+          </TouchableOpacity>
           <Text style={ps.name}>{displayName}</Text>
           <Text style={ps.email}>{user?.email || ''}</Text>
           <View style={ps.memberPill}>
-            <GlowDot size={5} />
-            <Text style={ps.memberText}>ACTIVE MEMBER</Text>
+            <Text style={ps.memberText}>Active Member</Text>
           </View>
         </View>
 
@@ -216,7 +334,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Your data — each row is tappable */}
-        <SectionHeader title="YOUR DATA" />
+        <SectionHeader title="Your Data" />
         <View style={ps.infoBlock}>
           {dataRows.map((r, i) => (
             <TouchableOpacity
@@ -228,7 +346,7 @@ export default function ProfileScreen({ navigation }) {
               <Text style={ps.infoLabel}>{r.label}</Text>
               <View style={ps.infoRight}>
                 {r.badge
-                  ? <Badge label={r.display} color={C.lime} />
+                  ? <Badge label={r.display} color={C.accent} />
                   : <Text style={ps.infoValue}>{r.display}</Text>
                 }
                 <Text style={ps.chevron}>›</Text>
@@ -238,7 +356,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Settings */}
-        <SectionHeader title="SETTINGS" />
+        <SectionHeader title="Settings" />
         <View style={ps.infoBlock}>
 
           {/* Units toggle */}
@@ -248,7 +366,7 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Text style={ps.settingIcon}>📏</Text>
+              <Icon name="resize-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Units</Text>
             </View>
             <View style={ps.unitToggle}>
@@ -268,7 +386,7 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Text style={ps.settingIcon}>🔒</Text>
+              <Icon name="lock-closed-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Data & Privacy</Text>
             </View>
             <Text style={ps.chevron}>›</Text>
@@ -277,7 +395,7 @@ export default function ProfileScreen({ navigation }) {
           {/* Apple Health */}
           <View style={ps.settingRow}>
             <View style={ps.settingLeft}>
-              <Text style={ps.settingIcon}>❤️</Text>
+              <Icon name="heart-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Apple Health</Text>
             </View>
             <Text style={[ps.settingStatus, healthKitEnabled && ps.settingStatusOn]}>
@@ -292,7 +410,7 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Text style={ps.settingIcon}>📄</Text>
+              <Icon name="document-text-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Privacy Policy</Text>
             </View>
             <Text style={ps.chevron}>›</Text>
@@ -305,7 +423,7 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Text style={ps.settingIcon}>📋</Text>
+              <Icon name="clipboard-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Terms of Service</Text>
             </View>
             <Text style={ps.chevron}>›</Text>
@@ -318,7 +436,7 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Text style={ps.settingIcon}>ℹ️</Text>
+              <Icon name="information-circle-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>About NutriSmart</Text>
             </View>
             <Text style={ps.chevron}>›</Text>
@@ -331,6 +449,20 @@ export default function ProfileScreen({ navigation }) {
           <Text style={ps.signOutText}>Sign Out</Text>
         </TouchableOpacity>
 
+        {/* Delete account */}
+        <TouchableOpacity
+          style={ps.deleteBtn}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.8}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color={C.red} size="small" />
+          ) : (
+            <Text style={ps.deleteText}>Delete Account</Text>
+          )}
+        </TouchableOpacity>
+
         <Text style={ps.version}>NutriSmart v1.0.0</Text>
 
       </ScrollView>
@@ -340,7 +472,7 @@ export default function ProfileScreen({ navigation }) {
         <OptionList
           options={GOALS}
           selected={goal}
-          emojiMap={GOAL_EMOJI}
+          iconMap={GOAL_ICONS}
           onSelect={v => { setGoal(v); setActiveSheet(null); }}
         />
       </Sheet>
@@ -350,7 +482,7 @@ export default function ProfileScreen({ navigation }) {
         <OptionList
           options={DIETS}
           selected={diet || 'No Restrictions'}
-          emojiMap={DIET_EMOJI}
+          iconMap={DIET_ICONS}
           onSelect={v => { setDiet(v); setActiveSheet(null); }}
         />
       </Sheet>
@@ -426,7 +558,7 @@ export default function ProfileScreen({ navigation }) {
             accessibilityLabel="Export my data"
           >
             {exporting ? (
-              <ActivityIndicator color={C.lime} size="small" />
+              <ActivityIndicator color={C.accent} size="small" />
             ) : (
               <Text style={ps.exportBtnText}>Export My Data</Text>
             )}
@@ -468,7 +600,7 @@ const ps = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: C.border,
   },
   backBtn:     { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
-  backBtnText: { fontSize: 18, color: C.lime, marginTop: -1 },
+  backBtnText: { fontSize: 18, color: C.accent, marginTop: -1 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: C.textPrimary },
 
   scroll: { padding: SPACING.md, paddingBottom: 60 },
@@ -480,20 +612,27 @@ const ps = StyleSheet.create({
   },
   avatarRing: {
     width: 96, height: 96, borderRadius: 48,
-    borderWidth: 2, borderColor: C.lime + '50',
-    padding: 4, marginBottom: SPACING.sm, ...SHADOW.lime,
+    borderWidth: 2, borderColor: C.accent + '50',
+    padding: 4, marginBottom: SPACING.sm, ...SHADOW.accent,
   },
-  avatar:        { flex: 1, borderRadius: 40, backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center' },
+  avatar:        { flex: 1, borderRadius: 40, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  avatarImage:   { width: '100%', height: '100%', borderRadius: 40 },
   avatarInitial: { fontSize: 38, fontWeight: '900', color: C.textInverse },
+  avatarCameraBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: C.surface3, borderWidth: 2, borderColor: C.black,
+    alignItems: 'center', justifyContent: 'center',
+  },
   name:          { fontSize: 24, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5, marginBottom: 4 },
   email:         { fontSize: 14, color: C.textSecondary, marginBottom: SPACING.sm },
   memberPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: C.limeGlow, borderRadius: RADIUS.full,
+    backgroundColor: C.accentBg, borderRadius: RADIUS.full,
     paddingHorizontal: 14, paddingVertical: 6,
-    borderWidth: 1, borderColor: C.lime + '30',
+    borderWidth: 1, borderColor: C.accent + '30',
   },
-  memberText: { fontSize: 9, fontWeight: '800', color: C.lime, letterSpacing: 1.8 },
+  memberText: { fontSize: 9, fontWeight: '800', color: C.accent, letterSpacing: 1.8 },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: SPACING.lg },
@@ -520,7 +659,7 @@ const ps = StyleSheet.create({
   infoValue:    { fontSize: 14, color: C.textPrimary, fontWeight: '600' },
   chevron:      { fontSize: 22, color: C.textTertiary, fontWeight: '300' },
   settingStatus:   { fontSize: 12, fontWeight: '600', color: C.textTertiary },
-  settingStatusOn: { color: C.lime },
+  settingStatusOn: { color: C.accent },
 
   // Settings rows
   settingRow: {
@@ -535,18 +674,27 @@ const ps = StyleSheet.create({
   // Unit toggle chips
   unitToggle:       { flexDirection: 'row', gap: 4 },
   unitChip:         { paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2 },
-  unitChipActive:   { backgroundColor: C.limeGlow, borderColor: C.lime },
+  unitChipActive:   { backgroundColor: C.accentBg, borderColor: C.accent },
   unitChipText:     { fontSize: 12, color: C.textTertiary, fontWeight: '600' },
-  unitChipTextActive: { color: C.lime },
+  unitChipTextActive: { color: C.accent },
 
   // Sign out
   signOutBtn: {
     borderWidth: 1, borderColor: C.red + '40',
     borderRadius: RADIUS.lg, padding: 16,
     alignItems: 'center', marginBottom: SPACING.md,
-    backgroundColor: C.redGlow,
+    backgroundColor: C.redBg,
   },
   signOutText: { fontSize: 15, fontWeight: '700', color: C.red },
+
+  // Delete account
+  deleteBtn: {
+    borderWidth: 1, borderColor: C.red + '25',
+    borderRadius: RADIUS.lg, padding: 16,
+    alignItems: 'center', marginBottom: SPACING.md,
+  },
+  deleteText: { fontSize: 14, fontWeight: '600', color: C.red + 'AA' },
+
   version:     { textAlign: 'center', fontSize: 11, color: C.textTertiary, fontWeight: '500' },
 
   // Bottom sheet
@@ -571,11 +719,11 @@ const ps = StyleSheet.create({
     paddingHorizontal: SPACING.md, paddingVertical: 14,
     borderWidth: 1, borderColor: C.border,
   },
-  optionRowActive: { borderColor: C.lime, backgroundColor: C.limeGlowSm },
+  optionRowActive: { borderColor: C.accent, backgroundColor: C.accentBgSm },
   optionEmoji:     { fontSize: 20 },
   optionLabel:     { flex: 1, fontSize: 15, color: C.textSecondary, fontWeight: '500' },
   optionLabelActive: { color: C.textPrimary, fontWeight: '700' },
-  optionCheck:     { width: 22, height: 22, borderRadius: 11, backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center' },
+  optionCheck:     { width: 22, height: 22, borderRadius: 11, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
   optionCheckMark: { fontSize: 12, color: C.textInverse, fontWeight: '900' },
 
   // Number input
@@ -588,31 +736,31 @@ const ps = StyleSheet.create({
   },
   numUnit:  { fontSize: 18, fontWeight: '700', color: C.textSecondary, minWidth: 36 },
   saveBtn: {
-    backgroundColor: C.lime, borderRadius: RADIUS.full,
-    paddingVertical: 15, alignItems: 'center', ...SHADOW.lime,
+    backgroundColor: C.accent, borderRadius: RADIUS.full,
+    paddingVertical: 15, alignItems: 'center', ...SHADOW.accent,
   },
   saveBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
 
   // Info sections (privacy / about)
   infoSection:    { marginBottom: SPACING.md },
-  infoSecHeading: { fontSize: 13, fontWeight: '800', color: C.lime, letterSpacing: 0.5, marginBottom: 6 },
+  infoSecHeading: { fontSize: 13, fontWeight: '800', color: C.accent, letterSpacing: 0.5, marginBottom: 6 },
   infoSecBody:    { fontSize: 14, color: C.textSecondary, lineHeight: 22 },
 
   // Export button
   exportBtn: {
     backgroundColor: C.surface3, borderRadius: RADIUS.md,
     paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: C.lime + '30',
+    borderWidth: 1, borderColor: C.accent + '30',
     marginTop: SPACING.sm,
   },
-  exportBtnText: { fontSize: 14, fontWeight: '700', color: C.lime },
+  exportBtnText: { fontSize: 14, fontWeight: '700', color: C.accent },
 
   // About logo
   aboutLogoWrap: { alignItems: 'center', marginBottom: SPACING.lg },
   aboutLogo: {
     width: 64, height: 64, borderRadius: RADIUS.lg,
-    backgroundColor: C.lime, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 10, ...SHADOW.lime,
+    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
+    marginBottom: 10, ...SHADOW.accent,
   },
   aboutLogoText: { fontSize: 32, fontWeight: '900', color: C.textInverse },
   aboutAppName:  { fontSize: 22, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
