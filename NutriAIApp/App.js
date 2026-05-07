@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import crashlytics from '@react-native-firebase/crashlytics';
+import analytics from '@react-native-firebase/analytics';
 
 import { AppProvider, useApp } from './src/context/AppContext';
 import { useAuth } from './src/context/AuthContext';
@@ -96,6 +98,16 @@ function SplashScreen() {
 function RootNav() {
   const { toast } = useApp();
   const { user, initializing, isOnboarded } = useAuth();
+  const routeNameRef = React.useRef();
+  const navigationRef = React.useRef();
+
+  // Set Crashlytics user ID for crash reports
+  useEffect(() => {
+    if (user?.uid) {
+      crashlytics().setUserId(user.uid);
+      analytics().setUserId(user.uid);
+    }
+  }, [user?.uid]);
 
   if (initializing) {
     return <SplashScreen />;
@@ -103,7 +115,18 @@ function RootNav() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.black }}>
-      <NavigationContainer>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={() => { routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name; }}
+        onStateChange={async () => {
+          const previousRoute = routeNameRef.current;
+          const currentRoute = navigationRef.current?.getCurrentRoute()?.name;
+          if (previousRoute !== currentRoute && currentRoute) {
+            await analytics().logScreenView({ screen_name: currentRoute, screen_class: currentRoute });
+          }
+          routeNameRef.current = currentRoute;
+        }}
+      >
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
           {!user ? (
             // Not authenticated — show auth screen

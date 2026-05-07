@@ -46,6 +46,7 @@ export async function logMealToFirestore(uid, mealData) {
     ...mealData,
     loggedAt: firestore.FieldValue.serverTimestamp(),
     date: new Date().toDateString(),
+    mealTime: mealData.mealTime || 'other',
   });
 }
 
@@ -263,13 +264,16 @@ export function subscribeWeightLog(uid, callback, onError) {
 export async function deleteUserData(uid) {
   const userRef = db.collection('users').doc(uid);
 
-  // Delete subcollections
+  // Delete subcollections in batches of 500 (Firestore batch limit)
   const subcollections = ['pantry', 'meals', 'streaks', 'workouts', 'weightLog', 'water'];
   for (const sub of subcollections) {
-    const snapshot = await userRef.collection(sub).get();
-    const batch = db.batch();
-    snapshot.docs.forEach(doc => batch.delete(doc.ref));
-    if (snapshot.docs.length > 0) await batch.commit();
+    let snapshot = await userRef.collection(sub).limit(500).get();
+    while (snapshot.docs.length > 0) {
+      const batch = db.batch();
+      snapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      snapshot = await userRef.collection(sub).limit(500).get();
+    }
   }
 
   // Delete user document

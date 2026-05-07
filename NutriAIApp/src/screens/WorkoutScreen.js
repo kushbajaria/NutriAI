@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { WORKOUTS, DURATIONS } from '../constants/data';
 import { useApp } from '../context/AppContext';
-import { Badge, SectionHeader } from '../components/UI';
+import { Badge, SectionHeader, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 
 const TYPES = Object.keys(WORKOUTS);
@@ -14,7 +14,9 @@ const TYPES = Object.keys(WORKOUTS);
 export default function WorkoutScreen({ navigation }) {
   const [type, setType]         = useState('Full Body');
   const [duration, setDuration] = useState('30 min');
+  const [refreshing, setRefreshing] = useState(false);
   const { totalCals, goal } = useApp();
+  const onRefresh = useCallback(() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }, []);
   const plan      = WORKOUTS[type];
   const exercises = plan.byDuration[duration];
   const calBurn   = plan.calBurn[duration];
@@ -31,16 +33,19 @@ export default function WorkoutScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}>
 
         {/* Workout log card */}
+        <FadeIn delay={0}>
         <TouchableOpacity style={s.logCard} onPress={() => navigation.navigate('WorkoutLog')} activeOpacity={0.7}>
           <Icon name="time-outline" size={18} color={C.accent} />
           <Text style={s.logCardText}>Workout Log</Text>
           <Icon name="chevron-forward" size={16} color={C.textTertiary} />
         </TouchableOpacity>
+        </FadeIn>
 
         {/* Type selector */}
+        <FadeIn delay={60}>
         <SectionHeader title="Workout Type" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.lg }}>
           <View style={s.typeRow}>
@@ -62,8 +67,10 @@ export default function WorkoutScreen({ navigation }) {
             })}
           </View>
         </ScrollView>
+        </FadeIn>
 
         {/* Duration */}
+        <FadeIn delay={120}>
         <SectionHeader title="Duration" />
         <View style={s.durRow}>
           {DURATIONS.map(d => {
@@ -80,8 +87,10 @@ export default function WorkoutScreen({ navigation }) {
             );
           })}
         </View>
+        </FadeIn>
 
         {/* Plan card */}
+        <FadeIn delay={180}>
         <View style={s.planCard}>
           <View style={s.planTop}>
             <View style={s.planEmoji}>
@@ -125,8 +134,10 @@ export default function WorkoutScreen({ navigation }) {
             <Text style={s.startBtnText}>Start Workout</Text>
           </TouchableOpacity>
         </View>
+        </FadeIn>
 
         {/* AI Insight */}
+        <FadeIn delay={240}>
         <View style={s.insightCard}>
           <View style={s.insightHeader}>
             <Text style={s.insightLabel}>Insight</Text>
@@ -140,6 +151,7 @@ export default function WorkoutScreen({ navigation }) {
             Your body has adequate fuel for peak performance.
           </Text>
         </View>
+        </FadeIn>
 
       </ScrollView>
     </SafeAreaView>

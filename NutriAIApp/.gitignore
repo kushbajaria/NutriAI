@@ -69,6 +69,19 @@ yarn-error.log
 ios/NutriAIApp/GoogleService-Info.plist
 android/app/google-services.json
 scripts/serviceAccountKey.json
+functions/node_modules/
+
+# Environment variables
+.env
+.env.*
+
+# IDE / editors
+.vscode/
+*.swp
+*.swo
+
+# Claude
+.claude/
 
 # Yarn
 .yarn/*

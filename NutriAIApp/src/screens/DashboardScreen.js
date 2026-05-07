@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Image,
-  ScrollView, Modal, StatusBar, Animated,
+  ScrollView, Modal, StatusBar, Animated, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
-import { CircularProgress, MacroChip, SectionHeader, Badge, Card } from '../components/UI';
+import { CircularProgress, MacroChip, SectionHeader, Badge, Card, FadeIn, SkeletonCard } from '../components/UI';
 import Icon from '../components/Icon';
 import { hapticSelection } from '../utils/haptics';
 
@@ -117,9 +117,9 @@ function CalorieHero({ totalCals, totalProtein, totalCarbs, totalFat, calGoal, o
       {/* Dotted ring */}
       <View style={{ alignItems: 'center', marginVertical: SPACING.md }}>
         <CircularProgress value={totalCals} max={CAL_GOAL} size={188} color={C.accent}>
-          <Text style={ds.ringCal}>{totalCals}</Text>
+          <Text style={ds.ringCal}>{totalCals.toLocaleString()}</Text>
           <Text style={ds.ringUnit}>kcal</Text>
-          <Text style={ds.ringRemain}>{CAL_GOAL - totalCals} left</Text>
+          <Text style={ds.ringRemain}>{Math.max(0, CAL_GOAL - totalCals).toLocaleString()} left</Text>
         </CircularProgress>
       </View>
 
@@ -367,20 +367,30 @@ function WeeklyProgress({ loggedMeals, completedWorkouts }) {
 }
 
 export default function DashboardScreen({ navigation }) {
-  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user, profile, pantryMeals, streakData, pantry, completedWorkouts, calGoal, waterData, waterGoalOz, addWater, removeWater, units, healthKitEnabled, todaySteps, todayActiveCal } = useApp();
+  const { totalCals, totalProtein, totalCarbs, totalFat, loggedMeals, goal, user, profile, pantryMeals, streakData, pantry, completedWorkouts, calGoal, waterData, waterGoalOz, addWater, removeWater, units, healthKitEnabled, todaySteps, todayActiveCal, mealsByTime } = useApp();
   const todayStr = new Date().toDateString();
   const todaysWorkoutCount = completedWorkouts.filter(w => w.date === todayStr).length;
   const [modal, setModal]         = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   const firstName = (user?.displayName || user?.name || 'there').split(' ')[0];
   const initial = firstName[0]?.toUpperCase();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
+  // Data is "loaded" once we have a user and at least one render cycle with subscriptions active
+  const isLoaded = !!user;
+
   useEffect(() => {
     if (streakData?.earnedToday) setShowCelebration(true);
   }, [streakData?.earnedToday]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Firestore subscriptions auto-sync; just show the spinner briefly
+    setTimeout(() => setRefreshing(false), 800);
+  }, []);
 
   return (
     <SafeAreaView style={ds.safe} edges={['top']}>
@@ -402,25 +412,81 @@ export default function DashboardScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={ds.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={ds.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={C.accent}
+            progressBackgroundColor={C.surface1}
+          />
+        }
+      >
 
-        <View style={ds.goalPill}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent }} />
-          <Text style={ds.goalText}>{goal}</Text>
-          <Text style={ds.goalStatus}>Active</Text>
-        </View>
+        <FadeIn delay={0}>
+          <View style={ds.goalPill}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: C.accent }} />
+            <Text style={ds.goalText}>{goal}</Text>
+            <Text style={ds.goalStatus}>Active</Text>
+          </View>
+        </FadeIn>
 
         {/* Calorie hero */}
-        <CalorieHero
-          totalCals={totalCals}
-          totalProtein={totalProtein}
-          totalCarbs={totalCarbs}
-          totalFat={totalFat}
-          calGoal={calGoal}
-          onPress={() => setModal('calories')}
-        />
+        {!isLoaded ? <SkeletonCard height={280} style={{ marginBottom: SPACING.lg }} /> : (
+        <FadeIn delay={60}>
+          <CalorieHero
+            totalCals={totalCals}
+            totalProtein={totalProtein}
+            totalCarbs={totalCarbs}
+            totalFat={totalFat}
+            calGoal={calGoal}
+            onPress={() => setModal('calories')}
+          />
+        </FadeIn>
+        )}
+
+        {/* Meal timing breakdown */}
+        <FadeIn delay={90}>
+          <View style={ds.mealTimeCard}>
+            {[
+              { key: 'breakfast', label: 'Breakfast', icon: 'sunny-outline', color: C.carbs },
+              { key: 'lunch', label: 'Lunch', icon: 'restaurant-outline', color: C.accent },
+              { key: 'dinner', label: 'Dinner', icon: 'moon-outline', color: C.blue },
+              { key: 'snack', label: 'Snack', icon: 'cafe-outline', color: C.protein },
+            ].map(slot => {
+              const meals = mealsByTime?.[slot.key] || [];
+              const cal = meals.reduce((a, m) => a + (m.cal || 0), 0);
+              return (
+                <View key={slot.key} style={ds.mealTimeRow}>
+                  <View style={[ds.mealTimeIconWrap, { backgroundColor: slot.color + '15' }]}>
+                    <Icon name={slot.icon} size={16} color={slot.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={ds.mealTimeLabel}>{slot.label}</Text>
+                    {meals.length > 0 ? (
+                      <Text style={ds.mealTimeSub}>{meals.length} {meals.length === 1 ? 'item' : 'items'} · {cal} cal</Text>
+                    ) : (
+                      <Text style={[ds.mealTimeSub, { color: C.textTertiary }]}>Not logged yet</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={ds.mealTimeAdd}
+                    onPress={() => navigation.navigate('Meals')}
+                    activeOpacity={0.7}
+                    accessibilityLabel={`Add ${slot.label}`}
+                  >
+                    <Icon name="add" size={16} color={C.accent} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        </FadeIn>
 
         {/* Water tracking */}
+        <FadeIn delay={150}>
         {(() => {
           const isMetric = units === 'Metric';
           const displayTotal = isMetric ? Math.round(waterData.totalOz * 29.5735) : waterData.totalOz;
@@ -451,6 +517,7 @@ export default function DashboardScreen({ navigation }) {
             </TouchableOpacity>
           );
         })()}
+        </FadeIn>
 
         {/* HealthKit Activity */}
         {healthKitEnabled && (
@@ -473,51 +540,57 @@ export default function DashboardScreen({ navigation }) {
         )}
 
         {/* Quick actions */}
-        <SectionHeader title="Quick Access" style={{ marginTop: SPACING.md }} />
-        <View style={ds.qaGrid}>
-          <QuickCard
-            icon="basket-outline" label="Pantry"
-            sub={`${pantry.length} items`} color={C.carbs}
-            onPress={() => navigation.navigate('Pantry')}
-          />
-          <QuickCard
-            icon="restaurant-outline" label="Meals"
-            sub={`${loggedMeals.length} logged`} color={C.accent}
-            onPress={() => navigation.navigate('Meals')}
-          />
-          <QuickCard
-            icon="barbell-outline" label="Workout"
-            sub={`${todaysWorkoutCount} done today`} color={C.protein}
-            onPress={() => navigation.navigate('Workout')}
-          />
-        </View>
+        <FadeIn delay={210}>
+          <SectionHeader title="Quick Access" style={{ marginTop: SPACING.md }} />
+          <View style={ds.qaGrid}>
+            <QuickCard
+              icon="basket-outline" label="Pantry"
+              sub={`${pantry.length} items`} color={C.carbs}
+              onPress={() => navigation.navigate('Pantry')}
+            />
+            <QuickCard
+              icon="restaurant-outline" label="Meals"
+              sub={`${loggedMeals.length} logged`} color={C.accent}
+              onPress={() => navigation.navigate('Meals')}
+            />
+            <QuickCard
+              icon="barbell-outline" label="Workout"
+              sub={`${todaysWorkoutCount} done today`} color={C.protein}
+              onPress={() => navigation.navigate('Workout')}
+            />
+          </View>
+        </FadeIn>
 
         {/* Weekly bar chart */}
-        <SectionHeader title="Weekly Progress" action="Details" onAction={() => navigation.navigate('WeeklyDetail')} />
-        <WeeklyProgress loggedMeals={loggedMeals} completedWorkouts={completedWorkouts} />
+        <FadeIn delay={270}>
+          <SectionHeader title="Weekly Progress" action="Details" onAction={() => navigation.navigate('WeeklyDetail')} />
+          <WeeklyProgress loggedMeals={loggedMeals} completedWorkouts={completedWorkouts} />
+        </FadeIn>
 
         {/* Suggested meal */}
-        <SectionHeader title="Suggested Meal" action="See All" onAction={() => navigation.navigate('Meals')} />
-        {pantryMeals.slice(0, 1).map(r => (
-          <TouchableOpacity
-            key={r.id}
-            style={ds.suggestCard}
-            onPress={() => navigation.navigate('Recipe', { recipe: r })}
-            activeOpacity={0.8}
-          >
-            <View style={ds.suggestLeft}>
-              <Icon name={r.icon} size={28} color={C.accent} />
-            </View>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Badge label={r.tag} color={C.accent} />
-              <Text style={ds.suggestName}>{r.name}</Text>
-              <Text style={ds.suggestMeta}>{r.cal} cal · {r.protein}g protein · {r.prepTime + r.cookTime} min</Text>
-            </View>
-            <View style={ds.suggestArrow}>
-              <Text style={ds.suggestArrowText}>→</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        <FadeIn delay={330}>
+          <SectionHeader title="Suggested Meal" action="See All" onAction={() => navigation.navigate('Meals')} />
+          {pantryMeals.slice(0, 1).map(r => (
+            <TouchableOpacity
+              key={r.id}
+              style={ds.suggestCard}
+              onPress={() => navigation.navigate('Recipe', { recipe: r })}
+              activeOpacity={0.8}
+            >
+              <View style={ds.suggestLeft}>
+                <Icon name={r.icon} size={28} color={C.accent} />
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Badge label={r.tag} color={C.accent} />
+                <Text style={ds.suggestName}>{r.name}</Text>
+                <Text style={ds.suggestMeta}>{r.cal} cal · {r.protein}g protein · {r.prepTime + r.cookTime} min</Text>
+              </View>
+              <View style={ds.suggestArrow}>
+                <Icon name="chevron-forward" size={16} color={C.accent} />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </FadeIn>
 
       </ScrollView>
 
@@ -666,7 +739,7 @@ const ds = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: C.surface3, alignItems: 'center', justifyContent: 'center',
   },
-  suggestArrowText: { fontSize: 14, color: C.accent, fontWeight: '700' },
+  suggestArrowText: { fontSize: 14, color: C.accent, fontWeight: '700' }, // legacy
 
   // Streak inline (header)
   streakInline: {
@@ -681,6 +754,27 @@ const ds = StyleSheet.create({
   },
   streakInlineDotOn: { backgroundColor: C.accent },
   streakInlineDotToday: { backgroundColor: C.surface3, borderWidth: 1, borderColor: C.accent },
+
+  // Meal timing section
+  mealTimeCard: {
+    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
+    padding: SPACING.md, borderWidth: 1, borderColor: C.border,
+    marginBottom: SPACING.lg, gap: 2,
+  },
+  mealTimeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10,
+  },
+  mealTimeIconWrap: {
+    width: 32, height: 32, borderRadius: RADIUS.sm,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  mealTimeLabel: { fontSize: 14, fontWeight: '600', color: C.textPrimary },
+  mealTimeSub: { fontSize: 11, fontWeight: '500', color: C.textSecondary, marginTop: 1 },
+  mealTimeAdd: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: C.accent + '15', alignItems: 'center', justifyContent: 'center',
+  },
 
   // Celebration overlay
   celebOverlay: {

@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, StatusBar,
+  ScrollView, StatusBar, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { WORKOUTS } from '../constants/data';
-import { Card } from '../components/UI';
+import { Card, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 
 function formatElapsed(secs) {
@@ -19,6 +19,8 @@ function formatElapsed(secs) {
 
 export default function WorkoutLogScreen({ navigation }) {
   const { completedWorkouts } = useApp();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }, []);
 
   // Group by date
   const grouped = useMemo(() => {
@@ -68,9 +70,10 @@ export default function WorkoutLogScreen({ navigation }) {
         <Text style={s.headerTitle}>Workout Log</Text>
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}>
 
         {/* Weekly summary */}
+        <FadeIn delay={0}>
         <Card style={s.summaryCard}>
           <Text style={s.summaryLabel}>This Week</Text>
           <View style={s.summaryRow}>
@@ -80,8 +83,10 @@ export default function WorkoutLogScreen({ navigation }) {
             <SummaryItem icon="calendar-outline" value={weekStats.days} label="Active Days" color={C.protein} />
           </View>
         </Card>
+        </FadeIn>
 
         {/* Workout list grouped by date */}
+        <FadeIn delay={100}>
         {grouped.length === 0 ? (
           <View style={s.emptyState}>
             <Icon name="barbell-outline" size={40} color={C.textTertiary} />
@@ -110,6 +115,7 @@ export default function WorkoutLogScreen({ navigation }) {
             );
           })
         )}
+        </FadeIn>
 
       </ScrollView>
     </SafeAreaView>

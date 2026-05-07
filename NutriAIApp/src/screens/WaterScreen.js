@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, StatusBar,
+  ScrollView, StatusBar, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
-import { CircularProgress, Card } from '../components/UI';
+import { CircularProgress, Card, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 import { getWaterWeek } from '../services/firestore';
 
@@ -30,6 +30,12 @@ export default function WaterScreen({ navigation }) {
   const sizes = isMetric ? SIZES_METRIC : SIZES_IMPERIAL;
 
   const [weekWater, setWeekWater] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    if (user?.uid) getWaterWeek(user.uid).then(setWeekWater).catch(() => {}).finally(() => setRefreshing(false));
+    else setTimeout(() => setRefreshing(false), 800);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -60,9 +66,10 @@ export default function WaterScreen({ navigation }) {
         <Text style={s.headerTitle}>Hydration</Text>
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.blue} />}>
 
         {/* Today's progress */}
+        <FadeIn delay={0}>
         <Card style={s.progressCard}>
           <View style={{ alignItems: 'center' }}>
             <CircularProgress value={waterData.totalOz} max={waterGoalOz} size={160} color={C.blue}>
@@ -85,8 +92,10 @@ export default function WaterScreen({ navigation }) {
             Goal based on your weight{waterGoalOz > 64 ? ' + workout boost' : ''}
           </Text>
         </Card>
+        </FadeIn>
 
         {/* Quick-add buttons */}
+        <FadeIn delay={80}>
         <Text style={s.sectionTitle}>Quick Add</Text>
         <View style={s.sizeGrid}>
           {sizes.map(size => (
@@ -110,10 +119,11 @@ export default function WaterScreen({ navigation }) {
             <Text style={s.undoText}>Undo last</Text>
           </TouchableOpacity>
         )}
+        </FadeIn>
 
         {/* Weekly chart */}
         {weekWater.length > 0 && (
-          <>
+          <FadeIn delay={160}>
             <Text style={s.sectionTitle}>This Week</Text>
             <Card style={s.weekCard}>
               <View style={s.weekChart}>
@@ -146,7 +156,7 @@ export default function WaterScreen({ navigation }) {
                 <Text style={s.goalLineText}>Goal: {displayVol(waterGoalOz)}</Text>
               </View>
             </Card>
-          </>
+          </FadeIn>
         )}
 
         {/* Today's entries */}

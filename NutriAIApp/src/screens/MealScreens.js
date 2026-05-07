@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet, Modal,
   ScrollView, StatusBar, TextInput,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
 import { getRecipeReviews } from '../services/firestore';
-import { Badge, SectionHeader } from '../components/UI';
+import { Badge, SectionHeader, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 
 // ── STAR ROW ───────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ function RecipeCard({ recipe: r, recipeReviews, onPress }) {
       {/* Footer */}
       <View style={s.cardFooter}>
         <Text style={s.footerServings}>{r.servings} serving{r.servings !== 1 ? 's' : ''}</Text>
-        <Text style={s.viewBtnText}>View Recipe →</Text>
+        <Text style={s.viewBtnText}>View Recipe</Text>
       </View>
 
     </TouchableOpacity>
@@ -141,6 +141,8 @@ function RecipeCard({ recipe: r, recipeReviews, onPress }) {
 // ── MEALS SCREEN ──────────────────────────────────────────────────
 export function MealsScreen({ navigation }) {
   const { pantryMeals, reviews, goal, pantry } = useApp();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }, []);
 
   const canMake  = pantryMeals.filter(r => r.matchScore >= 0.6);
   const discover = pantryMeals.filter(r => r.matchScore <  0.6);
@@ -175,13 +177,15 @@ export function MealsScreen({ navigation }) {
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
       >
 
         {/* From your pantry */}
+        <FadeIn delay={0}>
         <SectionHeader title={`From Your Pantry · ${canMake.length}`} />
         {canMake.length === 0 ? (
           <View style={s.emptyCard}>
-            <Text style={s.emptyIcon}>🛒</Text>
+            <Icon name="basket-outline" size={36} color={C.textTertiary} />
             <Text style={s.emptyTitle}>Add more to your pantry</Text>
             <Text style={s.emptySub}>
               We need at least 60% of a recipe's ingredients to suggest it from your pantry.
@@ -197,10 +201,11 @@ export function MealsScreen({ navigation }) {
             />
           ))
         )}
+        </FadeIn>
 
         {/* Discover more */}
         {discover.length > 0 && (
-          <>
+          <FadeIn delay={120}>
             <SectionHeader title={`Discover More · ${discover.length}`} />
             {discover.map(r => (
               <RecipeCard
@@ -210,7 +215,7 @@ export function MealsScreen({ navigation }) {
                 onPress={() => navigation.navigate('Recipe', { recipe: r })}
               />
             ))}
-          </>
+          </FadeIn>
         )}
 
       </ScrollView>
@@ -225,6 +230,7 @@ export function RecipeScreen({ navigation, route }) {
   const [reviewText, setReviewText] = useState('');
   const [submitted,  setSubmitted]  = useState(false);
   const [firestoreReviews, setFirestoreReviews] = useState([]);
+  const [showMealTimePicker, setShowMealTimePicker] = useState(false);
 
   const recipeId = route?.params?.recipe?.id;
 
@@ -281,7 +287,12 @@ export function RecipeScreen({ navigation, route }) {
     : 0;
   const alreadyReviewed = recipeReviews.some(rv => rv.isOwn);
 
-  const handleLog = () => { logMeal(r); navigation.navigate('Main'); };
+  const handleLog = () => { setShowMealTimePicker(true); };
+  const confirmLog = (mealTime) => {
+    setShowMealTimePicker(false);
+    logMeal(r, mealTime);
+    navigation.navigate('Main');
+  };
 
   const handleSubmitReview = () => {
     if (userStars === 0) return;
@@ -303,7 +314,7 @@ export function RecipeScreen({ navigation, route }) {
       {/* Nav bar */}
       <View style={rs.navbar}>
         <TouchableOpacity style={rs.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Text style={rs.backBtnText}>←</Text>
+          <Icon name="chevron-back" size={20} color={C.accent} />
         </TouchableOpacity>
         <Text style={rs.navTitle} numberOfLines={1}>{r.name}</Text>
         <View style={{ width: 36 }} />
@@ -490,9 +501,29 @@ export function RecipeScreen({ navigation, route }) {
       {/* Action bar */}
       <View style={rs.actionBar}>
         <TouchableOpacity style={rs.logBtn} onPress={handleLog} activeOpacity={0.85}>
-          <Text style={rs.logBtnText}>Log This Meal ✓</Text>
+          <Text style={rs.logBtnText}>Log This Meal</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Meal time picker */}
+      <Modal visible={showMealTimePicker} transparent animationType="fade" onRequestClose={() => setShowMealTimePicker(false)}>
+        <TouchableOpacity style={rs.mtOverlay} activeOpacity={1} onPress={() => setShowMealTimePicker(false)}>
+          <View style={rs.mtSheet}>
+            <Text style={rs.mtTitle}>When did you eat this?</Text>
+            {[
+              { key: 'breakfast', label: 'Breakfast', icon: 'sunny-outline' },
+              { key: 'lunch', label: 'Lunch', icon: 'restaurant-outline' },
+              { key: 'dinner', label: 'Dinner', icon: 'moon-outline' },
+              { key: 'snack', label: 'Snack', icon: 'cafe-outline' },
+            ].map(opt => (
+              <TouchableOpacity key={opt.key} style={rs.mtOption} onPress={() => confirmLog(opt.key)} activeOpacity={0.7}>
+                <Icon name={opt.icon} size={20} color={C.accent} />
+                <Text style={rs.mtOptionText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -702,4 +733,17 @@ const rs = StyleSheet.create({
   ghostBtnText: { fontSize: 14, color: C.textSecondary, fontWeight: '600' },
   logBtn:       { flex: 1, height: 52, backgroundColor: C.accent, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center', ...SHADOW.accent },
   logBtnText:   { fontSize: 15, fontWeight: '800', color: C.textInverse },
+
+  // Meal time picker
+  mtOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  mtSheet: {
+    backgroundColor: C.surface1, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
+    padding: SPACING.lg, paddingBottom: 40,
+  },
+  mtTitle: { fontSize: 17, fontWeight: '800', color: C.textPrimary, marginBottom: SPACING.md, textAlign: 'center' },
+  mtOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border,
+  },
+  mtOptionText: { fontSize: 16, fontWeight: '600', color: C.textPrimary },
 });

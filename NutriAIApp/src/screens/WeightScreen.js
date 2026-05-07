@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
-import { PillButton } from '../components/UI';
+import { PillButton, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 import { logWeight, subscribeWeightLog } from '../services/firestore';
 import { hapticSuccess } from '../utils/haptics';

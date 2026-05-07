@@ -21,6 +21,17 @@ import { cacheRecipes, getCachedRecipes, cacheUserData, getCachedUserData } from
 import { hapticSuccess, hapticMedium, hapticSelection } from '../utils/haptics';
 import { initHealthKit, isHealthKitAvailable, writeMealToHealthKit, writeWorkoutToHealthKit, getTodaySteps, getTodayActiveCalories } from '../services/healthkit';
 import { RECIPES as FALLBACK_RECIPES, MOCK_REVIEWS } from '../constants/data';
+import analytics from '@react-native-firebase/analytics';
+import functions from '@react-native-firebase/functions';
+
+// Meal time helper — defaults based on current hour
+function getDefaultMealTime() {
+  const h = new Date().getHours();
+  if (h < 11) return 'breakfast';
+  if (h < 15) return 'lunch';
+  if (h < 20) return 'dinner';
+  return 'snack';
+}
 
 const DataContext = createContext(null);
 
@@ -334,7 +345,8 @@ export function DataProvider({ children }) {
     }, 4000);
   }, [streakData, user?.uid]);
 
-  const logMeal = useCallback(async (recipe) => {
+  const logMeal = useCallback(async (recipe, mealTime) => {
+    const time = mealTime || getDefaultMealTime();
     try {
       if (user?.uid) {
         await logMealToFirestore(user.uid, {
@@ -346,10 +358,12 @@ export function DataProvider({ children }) {
           fat: recipe.fat,
           tag: recipe.tag,
           recipeId: recipe.id,
+          mealTime: time,
         });
       }
       hapticSuccess();
       if (healthKitEnabled) writeMealToHealthKit(recipe).catch(() => {});
+      analytics().logEvent('meal_logged', { name: recipe.name, cal: recipe.cal, tag: recipe.tag, mealTime: time });
       showToast(`${recipe.name} logged`);
       await recordActivity();
     } catch (err) {
@@ -376,12 +390,29 @@ export function DataProvider({ children }) {
     hapticMedium();
     showToast('Review posted');
 
-    // Persist to Firestore
+    // Submit via Cloud Function (rate-limited + profanity-checked)
     if (user?.uid) {
       try {
-        await addReviewToFirestore(recipeId, user.uid, { stars, text });
+        const submitReview = functions().httpsCallable('submitReview');
+        await submitReview({ recipeId, stars, text });
       } catch (err) {
-        console.warn('Failed to persist review:', err.message);
+        // Fallback to direct write if Cloud Functions not deployed yet
+        if (err.code === 'functions/not-found' || err.code === 'functions/unavailable') {
+          try {
+            await addReviewToFirestore(recipeId, user.uid, { stars, text });
+          } catch (fallbackErr) {
+            console.warn('Failed to persist review:', fallbackErr.message);
+          }
+        } else {
+          // Show user-facing error from callable (rate limit, profanity, etc.)
+          const msg = err.message || 'Failed to post review';
+          showToast(msg);
+          // Remove optimistic review
+          setReviews(prev => ({
+            ...prev,
+            [recipeId]: (prev[recipeId] || []).filter(r => r.id !== newReview.id),
+          }));
+        }
       }
     }
   }, [user, showToast]);
@@ -393,6 +424,7 @@ export function DataProvider({ children }) {
       }
       hapticSuccess();
       if (healthKitEnabled) writeWorkoutToHealthKit(workoutData).catch(() => {});
+      analytics().logEvent('workout_logged', { type: workoutData.type, duration: workoutData.duration });
       showToast('Workout logged!');
       await recordActivity();
     } catch (err) {
@@ -414,6 +446,17 @@ export function DataProvider({ children }) {
   const totalProtein = todaysMeals.reduce((a, m) => a + (m.protein || 0), 0);
   const totalCarbs   = todaysMeals.reduce((a, m) => a + (m.carbs || 0),   0);
   const totalFat     = todaysMeals.reduce((a, m) => a + (m.fat || 0),     0);
+
+  // Group today's meals by meal time
+  const mealsByTime = useMemo(() => {
+    const groups = { breakfast: [], lunch: [], dinner: [], snack: [] };
+    todaysMeals.forEach(m => {
+      const time = m.mealTime || 'other';
+      if (groups[time]) groups[time].push(m);
+      else groups.snack.push(m); // fallback old meals without mealTime
+    });
+    return groups;
+  }, [todaysMeals]);
 
   // Calorie & macro goals (computed or custom override)
   const calGoal = calGoalOverride || calculateTDEE(age, height, weight, units, goal);
@@ -445,6 +488,7 @@ export function DataProvider({ children }) {
         }
         if (pctBefore < 1.0 && pctAfter >= 1.0) {
           hapticSuccess();
+          analytics().logEvent('water_goal_hit', { goalOz: waterGoalOz });
           showToast('Water goal hit! Great job.');
           await recordActivity();
         }
@@ -487,7 +531,7 @@ export function DataProvider({ children }) {
       units, setUnits,
       pantry, setPantry,
       loggedMeals, logMeal,
-      todaysMeals,
+      todaysMeals, mealsByTime,
       totalCals, totalProtein, totalCarbs, totalFat,
       calGoal, setCalGoal, macroGoals,
       streakData, recordActivity,

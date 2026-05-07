@@ -167,7 +167,7 @@ export default function OnboardScreen() {
 
               <View style={s.btnRow}>
                 <TouchableOpacity style={s.backChip} onPress={() => setStep(1)}>
-                  <Text style={s.backChipText}>← Back</Text>
+                  <Icon name="chevron-back" size={14} color={C.textSecondary} /><Text style={s.backChipText}>Back</Text>
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
                   {saving ? (

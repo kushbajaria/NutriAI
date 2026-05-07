@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import crashlytics from '@react-native-firebase/crashlytics';
 import { C, RADIUS, SPACING } from '../constants/theme';
 
 export default class ErrorBoundary extends React.Component {
@@ -11,6 +12,7 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    crashlytics().recordError(error, errorInfo?.componentStack || 'ErrorBoundary');
   }
 
   handleReset = () => {

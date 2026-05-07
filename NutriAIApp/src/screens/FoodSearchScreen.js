@@ -1,21 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, StatusBar,
+  View, Text, TextInput, TouchableOpacity, Modal,
+  StyleSheet, ScrollView, StatusBar, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING } from '../constants/theme';
+import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { RECIPES } from '../constants/data';
 import { useApp } from '../context/AppContext';
-import { Badge } from '../components/UI';
+import { Badge, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 
 const FILTERS = ['All', 'High Protein', 'Quick', 'Vegetarian', 'Meal Prep', 'Clean Eating'];
 
 export default function FoodSearchScreen({ navigation }) {
-  const { pantry } = useApp();
+  const { pantry, logMeal } = useApp();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
+  const [showCustom, setShowCustom] = useState(false);
+  const [customName, setCustomName] = useState('');
+  const [customCal, setCustomCal] = useState('');
+  const [customProtein, setCustomProtein] = useState('');
+  const [customCarbs, setCustomCarbs] = useState('');
+  const [customFat, setCustomFat] = useState('');
+  const [customMealTime, setCustomMealTime] = useState(null);
 
   const results = useMemo(() => {
     let list = RECIPES;
@@ -131,6 +138,94 @@ export default function FoodSearchScreen({ navigation }) {
           </View>
         )}
       </ScrollView>
+
+      {/* Custom food FAB */}
+      <TouchableOpacity style={s.fab} onPress={() => setShowCustom(true)} activeOpacity={0.85} accessibilityLabel="Add custom food">
+        <Icon name="create-outline" size={22} color={C.textInverse} />
+      </TouchableOpacity>
+
+      {/* Custom food entry modal */}
+      <Modal visible={showCustom} transparent animationType="slide" onRequestClose={() => setShowCustom(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowCustom(false)}>
+            <TouchableOpacity style={s.modalSheet} activeOpacity={1}>
+              <View style={s.modalHandle} />
+              <Text style={s.modalTitle}>Log Custom Food</Text>
+
+              <View style={s.inputGroup}>
+                <Text style={s.inputLabel}>Food name</Text>
+                <TextInput style={s.input} value={customName} onChangeText={setCustomName} placeholder="e.g. Chicken Breast" placeholderTextColor={C.textTertiary} />
+              </View>
+
+              <View style={s.inputRow}>
+                <View style={[s.inputGroup, { flex: 1 }]}>
+                  <Text style={s.inputLabel}>Calories</Text>
+                  <TextInput style={s.input} value={customCal} onChangeText={setCustomCal} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
+                </View>
+                <View style={[s.inputGroup, { flex: 1 }]}>
+                  <Text style={s.inputLabel}>Protein (g)</Text>
+                  <TextInput style={s.input} value={customProtein} onChangeText={setCustomProtein} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
+                </View>
+              </View>
+
+              <View style={s.inputRow}>
+                <View style={[s.inputGroup, { flex: 1 }]}>
+                  <Text style={s.inputLabel}>Carbs (g)</Text>
+                  <TextInput style={s.input} value={customCarbs} onChangeText={setCustomCarbs} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
+                </View>
+                <View style={[s.inputGroup, { flex: 1 }]}>
+                  <Text style={s.inputLabel}>Fat (g)</Text>
+                  <TextInput style={s.input} value={customFat} onChangeText={setCustomFat} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
+                </View>
+              </View>
+
+              {/* Meal time selection */}
+              <Text style={[s.inputLabel, { marginTop: 8 }]}>Meal time</Text>
+              <View style={s.mealTimeRow}>
+                {[
+                  { key: 'breakfast', label: 'Breakfast', icon: 'sunny-outline' },
+                  { key: 'lunch', label: 'Lunch', icon: 'restaurant-outline' },
+                  { key: 'dinner', label: 'Dinner', icon: 'moon-outline' },
+                  { key: 'snack', label: 'Snack', icon: 'cafe-outline' },
+                ].map(opt => (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[s.mealTimeChip, customMealTime === opt.key && s.mealTimeChipActive]}
+                    onPress={() => setCustomMealTime(opt.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Icon name={opt.icon} size={14} color={customMealTime === opt.key ? C.accent : C.textTertiary} />
+                    <Text style={[s.mealTimeChipText, customMealTime === opt.key && { color: C.accent }]}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={[s.logBtn, (!customName.trim() || !customCal) && { opacity: 0.4 }]}
+                disabled={!customName.trim() || !customCal}
+                onPress={() => {
+                  logMeal({
+                    id: `custom_${Date.now()}`,
+                    name: customName.trim(),
+                    cal: parseInt(customCal, 10) || 0,
+                    protein: parseInt(customProtein, 10) || 0,
+                    carbs: parseInt(customCarbs, 10) || 0,
+                    fat: parseInt(customFat, 10) || 0,
+                    icon: 'nutrition-outline',
+                    tag: 'Custom',
+                  }, customMealTime);
+                  setShowCustom(false);
+                  setCustomName(''); setCustomCal(''); setCustomProtein(''); setCustomCarbs(''); setCustomFat(''); setCustomMealTime(null);
+                  navigation.goBack();
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={s.logBtnText}>Log Food</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -194,4 +289,48 @@ const s = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxl, gap: 8 },
   emptyText: { fontSize: 16, fontWeight: '700', color: C.textSecondary },
   emptySub: { fontSize: 13, color: C.textTertiary },
+
+  // FAB
+  fab: {
+    position: 'absolute', bottom: 24, right: 20,
+    width: 52, height: 52, borderRadius: 26,
+    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
+    ...SHADOW.accent,
+  },
+
+  // Custom food modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: C.surface1, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
+    padding: SPACING.lg, paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: C.surface3,
+    alignSelf: 'center', marginBottom: SPACING.md,
+  },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: C.textPrimary, marginBottom: SPACING.md },
+
+  inputGroup: { marginBottom: 12 },
+  inputLabel: { fontSize: 12, fontWeight: '600', color: C.textTertiary, marginBottom: 6, letterSpacing: 0.3 },
+  input: {
+    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: C.textPrimary,
+  },
+  inputRow: { flexDirection: 'row', gap: 10 },
+
+  mealTimeRow: { flexDirection: 'row', gap: 8, marginTop: 6, marginBottom: SPACING.md },
+  mealTimeChip: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    paddingVertical: 10, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2,
+  },
+  mealTimeChipActive: { borderColor: C.accent, backgroundColor: C.accentBgSm },
+  mealTimeChipText: { fontSize: 11, fontWeight: '600', color: C.textTertiary },
+
+  logBtn: {
+    height: 52, backgroundColor: C.accent, borderRadius: RADIUS.full,
+    alignItems: 'center', justifyContent: 'center', ...SHADOW.accent,
+  },
+  logBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
 });

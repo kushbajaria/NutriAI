@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Animated,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import Icon from './Icon';
 
 // ── CIRCULAR PROGRESS ─────────────────────────────────────────────
 // Clean SVG ring — replaces DottedRing
@@ -159,7 +160,7 @@ export function ScreenHeader({ title, subtitle, onBack, right }) {
       <View style={styles.screenHeaderLeft}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Text style={styles.backBtnText}>←</Text>
+            <Icon name="chevron-back" size={20} color={C.accent} />
           </TouchableOpacity>
         )}
         <View>
@@ -195,12 +196,72 @@ export function GlowDot({ color = C.accent, size = 8 }) {
   );
 }
 
+// ── SKELETON (shimmer loading placeholder) ────────────────────────
+export function Skeleton({ width, height = 16, radius = RADIUS.sm, style }) {
+  const shimmer = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, { toValue: 0.7, duration: 800, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        { width, height, borderRadius: radius, backgroundColor: C.surface3, opacity: shimmer },
+        style,
+      ]}
+    />
+  );
+}
+
+// ── SKELETON CARD (full card placeholder) ─────────────────────────
+export function SkeletonCard({ height = 120, style }) {
+  return (
+    <View style={[styles.card, { height, justifyContent: 'center', gap: 10, padding: SPACING.md }, style]}>
+      <Skeleton width="50%" height={12} />
+      <Skeleton width="80%" height={10} />
+      <Skeleton width="65%" height={10} />
+    </View>
+  );
+}
+
+// ── FADE-IN WRAPPER ───────────────────────────────────────────────
+export function FadeIn({ delay = 0, duration = 400, children, style }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration, delay, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration, delay, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
+      {children}
+    </Animated.View>
+  );
+}
+
 // ── TOAST ──────────────────────────────────────────────────────────
 export function Toast({ message }) {
-  const opacity = React.useRef(new Animated.Value(0)).current;
-  const translateY = React.useRef(new Animated.Value(20)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
 
-  React.useEffect(() => {
+  const isError = /fail|error|incorrect|wrong/i.test(message);
+  const isSuccess = /logged|posted|saved|complete|hit|deleted|sent|updated/i.test(message);
+  const iconName = isError ? 'close-circle' : isSuccess ? 'checkmark-circle' : 'information-circle';
+  const iconColor = isError ? C.red : isSuccess ? C.accent : C.blue;
+
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.timing(translateY, { toValue: 0, duration: 300, useNativeDriver: true }),
@@ -216,6 +277,7 @@ export function Toast({ message }) {
 
   return (
     <Animated.View style={[styles.toast, { opacity, transform: [{ translateY }] }]}>
+      <Icon name={iconName} size={18} color={iconColor} />
       <Text style={styles.toastText}>{message}</Text>
     </Animated.View>
   );

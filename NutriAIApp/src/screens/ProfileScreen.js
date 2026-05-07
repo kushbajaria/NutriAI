@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Image,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Linking, Share, ActivityIndicator, Alert,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Linking, Share, ActivityIndicator, Alert, RefreshControl,
 } from 'react-native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { useApp } from '../context/AppContext';
 import { useUI } from '../context/UIContext';
 import { signOutUser, deleteAccount, reauthenticateWithPassword } from '../services/auth';
 import { exportUserData, updateUserProfile } from '../services/firestore';
-import { Badge, SectionHeader } from '../components/UI';
+import { Badge, SectionHeader, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 
 const GOALS = ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Boost Energy'];
@@ -54,7 +54,7 @@ function OptionList({ options, selected, iconMap, onSelect }) {
           >
             <Icon name={iconMap[opt]} size={20} color={active ? C.accent : C.textSecondary} />
             <Text style={[ps.optionLabel, active && ps.optionLabelActive]}>{opt}</Text>
-            {active && <View style={ps.optionCheck}><Text style={ps.optionCheckMark}>✓</Text></View>}
+            {active && <View style={ps.optionCheck}><Icon name="checkmark" size={14} color={C.textInverse} /></View>}
           </TouchableOpacity>
         );
       })}
@@ -200,6 +200,12 @@ export default function ProfileScreen({ navigation }) {
     }
   };
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    if (refreshProfile) refreshProfile().finally(() => setRefreshing(false));
+    else setTimeout(() => setRefreshing(false), 800);
+  }, [refreshProfile]);
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -290,15 +296,20 @@ export default function ProfileScreen({ navigation }) {
       {/* Header */}
       <View style={ps.header}>
         <TouchableOpacity style={ps.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Text style={ps.backBtnText}>←</Text>
+          <Icon name="chevron-back" size={20} color={C.accent} />
         </TouchableOpacity>
         <Text style={ps.headerTitle}>Profile</Text>
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={ps.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={ps.scroll}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
+      >
 
         {/* Avatar block */}
+        <FadeIn delay={0}>
         <View style={ps.avatarBlock}>
           <TouchableOpacity style={ps.avatarRing} onPress={handlePickPhoto} activeOpacity={0.8}>
             {profilePhoto ? (
@@ -322,8 +333,10 @@ export default function ProfileScreen({ navigation }) {
             <Text style={ps.memberText}>Active Member</Text>
           </View>
         </View>
+        </FadeIn>
 
         {/* Stats row */}
+        <FadeIn delay={60}>
         <View style={ps.statsRow}>
           {stats.map(st => (
             <View key={st.lbl} style={[ps.statCard, { borderColor: st.color + '25' }]}>
@@ -332,8 +345,10 @@ export default function ProfileScreen({ navigation }) {
             </View>
           ))}
         </View>
+        </FadeIn>
 
         {/* Your data — each row is tappable */}
+        <FadeIn delay={120}>
         <SectionHeader title="Your Data" />
         <View style={ps.infoBlock}>
           {dataRows.map((r, i) => (
@@ -349,13 +364,15 @@ export default function ProfileScreen({ navigation }) {
                   ? <Badge label={r.display} color={C.accent} />
                   : <Text style={ps.infoValue}>{r.display}</Text>
                 }
-                <Text style={ps.chevron}>›</Text>
+                <Icon name="chevron-forward" size={16} color={C.textTertiary} />
               </View>
             </TouchableOpacity>
           ))}
         </View>
+        </FadeIn>
 
         {/* Settings */}
+        <FadeIn delay={180}>
         <SectionHeader title="Settings" />
         <View style={ps.infoBlock}>
 
@@ -389,7 +406,7 @@ export default function ProfileScreen({ navigation }) {
               <Icon name="lock-closed-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Data & Privacy</Text>
             </View>
-            <Text style={ps.chevron}>›</Text>
+            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
           </TouchableOpacity>
 
           {/* Apple Health */}
@@ -413,7 +430,7 @@ export default function ProfileScreen({ navigation }) {
               <Icon name="document-text-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Privacy Policy</Text>
             </View>
-            <Text style={ps.chevron}>›</Text>
+            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
           </TouchableOpacity>
 
           {/* Terms of Service */}
@@ -426,7 +443,7 @@ export default function ProfileScreen({ navigation }) {
               <Icon name="clipboard-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>Terms of Service</Text>
             </View>
-            <Text style={ps.chevron}>›</Text>
+            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
           </TouchableOpacity>
 
           {/* About */}
@@ -439,12 +456,14 @@ export default function ProfileScreen({ navigation }) {
               <Icon name="information-circle-outline" size={18} color={C.textSecondary} />
               <Text style={ps.settingLabel}>About NutriSmart</Text>
             </View>
-            <Text style={ps.chevron}>›</Text>
+            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
           </TouchableOpacity>
 
         </View>
+        </FadeIn>
 
         {/* Sign out */}
+        <FadeIn delay={240}>
         <TouchableOpacity style={ps.signOutBtn} onPress={signOut} activeOpacity={0.8}>
           <Text style={ps.signOutText}>Sign Out</Text>
         </TouchableOpacity>
@@ -464,6 +483,7 @@ export default function ProfileScreen({ navigation }) {
         </TouchableOpacity>
 
         <Text style={ps.version}>NutriSmart v1.0.0</Text>
+        </FadeIn>
 
       </ScrollView>
 

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, StatusBar,
+  ScrollView, StatusBar, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import { useApp } from '../context/AppContext';
-import { Card } from '../components/UI';
+import { Card, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 import { hapticSelection } from '../utils/haptics';
 import { getWaterWeek } from '../services/firestore';
@@ -96,9 +96,10 @@ export default function WeeklyDetailScreen({ navigation }) {
         <Text style={s.headerTitle}>Weekly Progress</Text>
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={false} tintColor={C.accent} />}>
 
         {/* Bar chart card */}
+        <FadeIn delay={0}>
         <Card style={s.chartCard}>
           {selectedDay !== null && (
             <Text style={s.dayLabel}>{DAY_NAMES[selectedDay]}, {activeDay.shortDate}</Text>
@@ -143,8 +144,10 @@ export default function WeeklyDetailScreen({ navigation }) {
             })}
           </View>
         </Card>
+        </FadeIn>
 
         {/* Summary stats */}
+        <FadeIn delay={100}>
         <Card style={s.statsCard}>
           <Text style={s.statsTitle}>{selectedDay !== null ? DAY_NAMES[selectedDay] : 'Week'} Overview</Text>
           <View style={s.statsGrid}>
@@ -182,8 +185,10 @@ export default function WeeklyDetailScreen({ navigation }) {
             )}
           </View>
         </Card>
+        </FadeIn>
 
         {/* Macros breakdown */}
+        <FadeIn delay={200}>
         <Card style={s.statsCard}>
           <Text style={s.statsTitle}>
             {selectedDay !== null ? DAY_NAMES[selectedDay] : 'Week'} Macros
@@ -209,8 +214,10 @@ export default function WeeklyDetailScreen({ navigation }) {
             />
           </View>
         </Card>
+        </FadeIn>
 
         {/* Daily breakdown list */}
+        <FadeIn delay={300}>
         <Text style={s.sectionTitle}>Daily Breakdown</Text>
         {daily.map((d, i) => {
           const isToday = i === todayIdx;
@@ -241,6 +248,7 @@ export default function WeeklyDetailScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
+        </FadeIn>
 
       </ScrollView>
     </SafeAreaView>
