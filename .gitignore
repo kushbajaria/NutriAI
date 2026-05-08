@@ -78,3 +78,48 @@ vendor/bundle/
 **/fastlane/Preview.html
 **/fastlane/screenshots/
 **/fastlane/test_output/
+
+# Claude Code / AI assistants
+.claude/
+.superpowers/
+.cursor/
+.aider*
+.continue/
+.windsurf/
+.codeium/
+.github-copilot/
+CLAUDE.local.md
+GEMINI.local.md
+AGENTS.local.md
+.claude-*
+.anthropic/
+.openai/
+
+# AI chat / conversation exports
+*.chat.md
+*.conversation.md
+chat-history/
+conversations/
+
+# Secrets / credentials / API keys
+*.secret
+*.secrets
+secrets.*
+*credentials*.json
+*service-account*.json
+*serviceAccount*.json
+firebase-adminsdk-*.json
+*.private.json
+apikeys.*
+api-keys.*
+.envrc
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# Misc local
+*.bak
+*.swp
+*.tmp
+.cache/
