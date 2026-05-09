@@ -8,6 +8,7 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import analytics from '@react-native-firebase/analytics';
 
 import { AppProvider, useApp } from './src/context/AppContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import { useAuth } from './src/context/AuthContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { C, SHADOW } from './src/constants/theme';
@@ -158,12 +159,14 @@ function RootNav() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
-        <AppProvider>
-          <RootNav />
-        </AppProvider>
-      </SafeAreaProvider>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <StatusBar barStyle="light-content" backgroundColor={C.black} />
+          <AppProvider>
+            <RootNav />
+          </AppProvider>
+        </SafeAreaProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
