@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, TouchableOpacity, Animated, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
+import { View, Animated, StyleSheet, Dimensions, TouchableWithoutFeedback } from 'react-native';
 import { BlurView } from '@react-native-community/blur';
 import { useTheme } from '../context/ThemeContext';
 import { RADIUS, SPACING } from '../constants/theme';
