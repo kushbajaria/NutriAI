@@ -5,7 +5,9 @@ import {
   Platform, StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { GradientButton } from '../components';
 import { signUp, signIn, signInWithGoogle, signInWithApple, resetPassword } from '../services/auth';
 
 // Map Firebase error codes to user-friendly messages
@@ -24,6 +26,8 @@ function getAuthErrorMessage(code) {
 }
 
 export default function AuthScreen({ navigation }) {
+  const { mode, palette, accent, gradients } = useTheme();
+
   const [tab, setTab]           = useState('login');
   const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
@@ -96,8 +100,8 @@ export default function AuthScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+    <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top', 'bottom']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={s.scroll}
@@ -107,21 +111,21 @@ export default function AuthScreen({ navigation }) {
 
           {/* Logo */}
           <View style={s.logoRow}>
-            <View style={s.logoMark}>
-              <Text style={s.logoMarkText}>N</Text>
+            <View style={[s.logoMark, { backgroundColor: accent.primary }]}>
+              <Text style={[s.logoMarkText, { color: palette.textInverse }]}>N</Text>
             </View>
             <View>
-              <Text style={s.logoName}>NutriSmart</Text>
-              <Text style={s.logoTagline}>Your Wellness OS</Text>
+              <Text style={[s.logoName, { color: palette.textPrimary }]}>NutriSmart</Text>
+              <Text style={[s.logoTagline, { color: palette.textTertiary }]}>Your Wellness OS</Text>
             </View>
           </View>
 
           {/* Hero headline */}
           <View style={s.hero}>
-            <Text style={s.heroTitle}>
+            <Text style={[s.heroTitle, { color: palette.textPrimary }]}>
               {tab === 'login' ? 'Welcome\nback.' : 'Start your\njourney.'}
             </Text>
-            <Text style={s.heroSub}>
+            <Text style={[s.heroSub, { color: palette.textSecondary }]}>
               {tab === 'login'
                 ? 'Track nutrition, plan meals, and hit your goals.'
                 : 'Get personalized guidance tailored to your goals.'}
@@ -129,15 +133,18 @@ export default function AuthScreen({ navigation }) {
           </View>
 
           {/* Tab switcher */}
-          <View style={s.tabRow}>
+          <View style={[s.tabRow, { backgroundColor: palette.bg1, borderColor: palette.border }]}>
             {['login', 'signup'].map(t => (
               <TouchableOpacity
                 key={t}
-                style={[s.tabBtn, tab === t && s.tabBtnActive]}
+                style={[
+                  s.tabBtn,
+                  tab === t && [s.tabBtnActive, { backgroundColor: palette.bg3, borderColor: palette.borderHi }],
+                ]}
                 onPress={() => { setTab(t); setError(''); }}
                 activeOpacity={0.7}
               >
-                <Text style={[s.tabBtnText, tab === t && s.tabBtnTextActive]}>
+                <Text style={[s.tabBtnText, { color: palette.textTertiary }, tab === t && { color: palette.textPrimary, fontWeight: '700' }]}>
                   {t === 'login' ? 'Sign In' : 'Sign Up'}
                 </Text>
               </TouchableOpacity>
@@ -146,8 +153,8 @@ export default function AuthScreen({ navigation }) {
 
           {/* Error message */}
           {error ? (
-            <View style={s.errorBox}>
-              <Text style={s.errorText}>{error}</Text>
+            <View style={[s.errorBox, { backgroundColor: accent.red + '18', borderColor: accent.red + '30' }]}>
+              <Text style={[s.errorText, { color: accent.red }]}>{error}</Text>
             </View>
           ) : null}
 
@@ -155,11 +162,11 @@ export default function AuthScreen({ navigation }) {
           <View style={s.form}>
             {tab === 'signup' && (
               <View style={s.fieldWrap}>
-                <Text style={s.fieldLabel}>Full name</Text>
+                <Text style={[s.fieldLabel, { color: palette.textTertiary }]}>Full name</Text>
                 <TextInput
-                  style={s.input}
+                  style={[s.input, { backgroundColor: palette.bg1, borderColor: palette.border, color: palette.textPrimary }]}
                   placeholder="Your name"
-                  placeholderTextColor={C.textTertiary}
+                  placeholderTextColor={palette.textTertiary}
                   value={name}
                   onChangeText={setName}
                   autoCapitalize="words"
@@ -169,11 +176,11 @@ export default function AuthScreen({ navigation }) {
             )}
 
             <View style={s.fieldWrap}>
-              <Text style={s.fieldLabel}>Email</Text>
+              <Text style={[s.fieldLabel, { color: palette.textTertiary }]}>Email</Text>
               <TextInput
-                style={s.input}
+                style={[s.input, { backgroundColor: palette.bg1, borderColor: palette.border, color: palette.textPrimary }]}
                 placeholder="you@example.com"
-                placeholderTextColor={C.textTertiary}
+                placeholderTextColor={palette.textTertiary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -185,17 +192,17 @@ export default function AuthScreen({ navigation }) {
 
             <View style={s.fieldWrap}>
               <View style={s.fieldLabelRow}>
-                <Text style={s.fieldLabel}>Password</Text>
+                <Text style={[s.fieldLabel, { color: palette.textTertiary }]}>Password</Text>
                 {tab === 'login' && (
                   <TouchableOpacity onPress={handleForgotPassword}>
-                    <Text style={s.forgotText}>Forgot?</Text>
+                    <Text style={[s.forgotText, { color: accent.primary }]}>Forgot?</Text>
                   </TouchableOpacity>
                 )}
               </View>
               <TextInput
-                style={s.input}
+                style={[s.input, { backgroundColor: palette.bg1, borderColor: palette.border, color: palette.textPrimary }]}
                 placeholder="••••••••"
-                placeholderTextColor={C.textTertiary}
+                placeholderTextColor={palette.textTertiary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -205,31 +212,17 @@ export default function AuthScreen({ navigation }) {
           </View>
 
           {/* CTA */}
-          <TouchableOpacity
-            style={[s.ctaBtn, loading && s.ctaBtnDisabled]}
+          <GradientButton
+            label={tab === 'login' ? 'Sign In  →' : 'Create Account  →'}
             onPress={handleAuth}
-            activeOpacity={0.85}
             disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={C.textInverse} style={{ flex: 1 }} />
-            ) : (
-              <>
-                <Text style={s.ctaBtnText}>
-                  {tab === 'login' ? 'Sign In' : 'Create Account'}
-                </Text>
-                <View style={s.ctaArrow}>
-                  <Text style={s.ctaArrowText}>→</Text>
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
+          />
 
           {/* OR divider */}
           <View style={s.orRow}>
-            <View style={s.orLine} />
-            <Text style={s.orText}>OR</Text>
-            <View style={s.orLine} />
+            <View style={[s.orLine, { backgroundColor: palette.border }]} />
+            <Text style={[s.orText, { color: palette.textTertiary }]}>OR</Text>
+            <View style={[s.orLine, { backgroundColor: palette.border }]} />
           </View>
 
           {/* Apple */}
@@ -245,15 +238,15 @@ export default function AuthScreen({ navigation }) {
 
           {/* Google */}
           <TouchableOpacity
-            style={s.googleBtn}
+            style={[s.googleBtn, { backgroundColor: palette.glass1Bg, borderColor: palette.glass1Border }]}
             onPress={handleGoogleSignIn}
             activeOpacity={0.8}
             disabled={loading}
           >
-            <View style={s.googleIcon}>
-              <Text style={s.googleIconText}>G</Text>
+            <View style={[s.googleIcon, { backgroundColor: palette.bg3 }]}>
+              <Text style={[s.googleIconText, { color: palette.textPrimary }]}>G</Text>
             </View>
-            <Text style={s.googleText}>Continue with Google</Text>
+            <Text style={[s.googleText, { color: palette.textPrimary }]}>Continue with Google</Text>
           </TouchableOpacity>
 
         </ScrollView>
@@ -263,7 +256,7 @@ export default function AuthScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1 },
 
   scroll: { padding: SPACING.lg, paddingTop: SPACING.xl },
 
@@ -271,78 +264,58 @@ const s = StyleSheet.create({
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: SPACING.xxl },
   logoMark: {
     width: 44, height: 44, borderRadius: RADIUS.sm,
-    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     ...SHADOW.accent,
   },
-  logoMarkText: { fontSize: 24, fontWeight: '900', color: C.textInverse },
-  logoName:    { fontSize: 19, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
-  logoTagline: { fontSize: 9, fontWeight: '700', color: C.textTertiary, letterSpacing: 2 },
+  logoMarkText: { fontSize: 24, fontWeight: '900' },
+  logoName:    { fontSize: 19, fontWeight: '800', letterSpacing: -0.5 },
+  logoTagline: { fontSize: 9, fontWeight: '700', letterSpacing: 2 },
 
   // Hero
   hero: { marginBottom: SPACING.xl },
   heroTitle: {
-    fontSize: 52, fontWeight: '900', color: C.textPrimary,
+    fontSize: 52, fontWeight: '900',
     lineHeight: 56, letterSpacing: -2, marginBottom: SPACING.sm,
   },
-  heroSub: { fontSize: 15, color: C.textSecondary, lineHeight: 22 },
+  heroSub: { fontSize: 15, lineHeight: 22 },
 
   // Tab switcher
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: C.surface1,
     borderRadius: RADIUS.md, padding: 4,
     marginBottom: SPACING.lg,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
   },
-  tabBtn:           { flex: 1, paddingVertical: 11, borderRadius: RADIUS.sm, alignItems: 'center' },
-  tabBtnActive:     { backgroundColor: C.surface3, borderWidth: 1, borderColor: C.borderHi },
-  tabBtnText:       { fontSize: 14, fontWeight: '600', color: C.textTertiary },
-  tabBtnTextActive: { color: C.textPrimary, fontWeight: '700' },
+  tabBtn:       { flex: 1, paddingVertical: 11, borderRadius: RADIUS.sm, alignItems: 'center' },
+  tabBtnActive: { borderWidth: 1 },
+  tabBtnText:   { fontSize: 14, fontWeight: '600' },
 
   // Error
   errorBox: {
-    backgroundColor: C.red + '18', borderRadius: RADIUS.md,
+    borderRadius: RADIUS.md,
     padding: 12, marginBottom: SPACING.md,
-    borderWidth: 1, borderColor: C.red + '30',
+    borderWidth: 1,
   },
-  errorText: { fontSize: 13, color: C.red, fontWeight: '600', textAlign: 'center' },
+  errorText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
 
   // Form
   form: { gap: SPACING.md, marginBottom: SPACING.lg },
   fieldWrap: { gap: 7 },
-  fieldLabel: { fontSize: 9, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.8 },
+  fieldLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.8 },
   fieldLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  forgotText: { fontSize: 12, color: C.accent, fontWeight: '600' },
+  forgotText: { fontSize: 12, fontWeight: '600' },
   input: {
-    backgroundColor: C.surface1, borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
     borderRadius: RADIUS.md, paddingHorizontal: 16, paddingVertical: 15,
-    color: C.textPrimary, fontSize: 15,
+    fontSize: 15,
   },
-
-  // CTA button
-  ctaBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.accent, borderRadius: RADIUS.full,
-    paddingLeft: SPACING.lg, paddingRight: 8, paddingVertical: 8,
-    marginBottom: SPACING.md,
-    minHeight: 60,
-    ...SHADOW.accent,
-  },
-  ctaBtnDisabled: { opacity: 0.7 },
-  ctaBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
-  ctaArrow: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: C.black + '25',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  ctaArrowText: { fontSize: 18, color: C.textInverse, fontWeight: '700' },
 
   // OR
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: SPACING.sm },
-  orLine: { flex: 1, height: 1, backgroundColor: C.border },
-  orText: { fontSize: 10, fontWeight: '700', color: C.textTertiary, letterSpacing: 1.2 },
+  orLine: { flex: 1, height: 1 },
+  orText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
 
-  // Apple
+  // Apple (brand compliance: always white bg, black text)
   appleBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     backgroundColor: '#FFFFFF', borderRadius: RADIUS.md, paddingVertical: 15,
@@ -354,15 +327,14 @@ const s = StyleSheet.create({
   // Google
   googleBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
-    backgroundColor: C.surface1, borderWidth: 1, borderColor: C.borderHi,
+    borderWidth: 1,
     borderRadius: RADIUS.md, paddingVertical: 15,
     marginBottom: SPACING.lg,
   },
   googleIcon: {
     width: 26, height: 26, borderRadius: 13,
-    backgroundColor: C.surface3,
     alignItems: 'center', justifyContent: 'center',
   },
-  googleIconText: { fontSize: 14, fontWeight: '900', color: C.textPrimary },
-  googleText:     { fontSize: 15, fontWeight: '600', color: C.textPrimary },
+  googleIconText: { fontSize: 14, fontWeight: '900' },
+  googleText:     { fontSize: 15, fontWeight: '600' },
 });
