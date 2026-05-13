@@ -4,9 +4,10 @@ import {
   ScrollView, StatusBar, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import { CircularProgress, Card, FadeIn } from '../components/UI';
+import { GlassCard, GradientRing, BlurHeader } from '../components';
 import Icon from '../components/Icon';
 import { getWaterWeek } from '../services/firestore';
 
@@ -25,6 +26,7 @@ const SIZES_METRIC = [
 ];
 
 export default function WaterScreen({ navigation }) {
+  const { mode, palette, accent, gradients } = useTheme();
   const { user, waterData, waterGoalOz, addWater, removeWater, units } = useApp();
   const isMetric = units === 'Metric';
   const sizes = isMetric ? SIZES_METRIC : SIZES_IMPERIAL;
@@ -55,59 +57,54 @@ export default function WaterScreen({ navigation }) {
   const DAY_LABELS = ['M','T','W','T','F','S','S'];
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+    <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityLabel="Go back">
-          <Icon name="chevron-back" size={22} color={C.blue} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Hydration</Text>
-      </View>
+      <BlurHeader
+        title="Hydration"
+        onBack={() => navigation.goBack()}
+      />
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.blue} />}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent.hydration} />}>
 
         {/* Today's progress */}
-        <FadeIn delay={0}>
-        <Card style={s.progressCard}>
+        <GlassCard level={1} style={s.progressCard}>
           <View style={{ alignItems: 'center' }}>
-            <CircularProgress value={waterData.totalOz} max={waterGoalOz} size={160} color={C.blue}>
+            <GradientRing value={waterData.totalOz} max={waterGoalOz} size={160} gradient={gradients.hydration}>
               {goalHit ? (
                 <>
-                  <Icon name="checkmark-circle" size={32} color={C.blue} />
-                  <Text style={s.ringLabel}>Complete!</Text>
+                  <Icon name="checkmark-circle" size={32} color={accent.hydration} />
+                  <Text style={[s.ringLabel, { color: accent.hydration }]}>Complete!</Text>
                 </>
               ) : (
                 <>
-                  <Text style={s.ringValue}>{displayVol(waterData.totalOz)}</Text>
-                  <Text style={s.ringGoal}>of {displayVol(waterGoalOz)}</Text>
-                  <Text style={s.ringPct}>{Math.round(pct * 100)}%</Text>
+                  <Text style={[s.ringValue, { color: palette.textPrimary }]}>{displayVol(waterData.totalOz)}</Text>
+                  <Text style={[s.ringGoal, { color: palette.textTertiary }]}>of {displayVol(waterGoalOz)}</Text>
+                  <Text style={[s.ringPct, { color: accent.hydration }]}>{Math.round(pct * 100)}%</Text>
                 </>
               )}
-            </CircularProgress>
+            </GradientRing>
           </View>
 
-          <Text style={s.goalNote}>
+          <Text style={[s.goalNote, { color: palette.textTertiary }]}>
             Goal based on your weight{waterGoalOz > 64 ? ' + workout boost' : ''}
           </Text>
-        </Card>
-        </FadeIn>
+        </GlassCard>
 
         {/* Quick-add buttons */}
-        <FadeIn delay={80}>
-        <Text style={s.sectionTitle}>Quick Add</Text>
+        <Text style={[s.sectionTitle, { color: palette.textSecondary }]}>Quick Add</Text>
         <View style={s.sizeGrid}>
           {sizes.map(size => (
             <TouchableOpacity
               key={size.label}
-              style={s.sizeBtn}
+              style={[s.sizeBtn, { backgroundColor: palette.glass1Bg, borderColor: palette.glass1Border }]}
               onPress={() => addWater(size.label)}
               activeOpacity={0.7}
             >
-              <Icon name={size.icon} size={22} color={C.blue} />
-              <Text style={s.sizeName}>{size.label}</Text>
-              <Text style={s.sizeVol}>{size.display}</Text>
+              <Icon name={size.icon} size={22} color={accent.hydration} />
+              <Text style={[s.sizeName, { color: palette.textPrimary }]}>{size.label}</Text>
+              <Text style={[s.sizeVol, { color: palette.textTertiary }]}>{size.display}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -115,17 +112,16 @@ export default function WaterScreen({ navigation }) {
         {/* Undo */}
         {waterData.entries.length > 0 && (
           <TouchableOpacity style={s.undoBtn} onPress={removeWater} activeOpacity={0.7}>
-            <Icon name="arrow-undo-outline" size={14} color={C.textTertiary} />
-            <Text style={s.undoText}>Undo last</Text>
+            <Icon name="arrow-undo-outline" size={14} color={palette.textTertiary} />
+            <Text style={[s.undoText, { color: palette.textTertiary }]}>Undo last</Text>
           </TouchableOpacity>
         )}
-        </FadeIn>
 
         {/* Weekly chart */}
         {weekWater.length > 0 && (
-          <FadeIn delay={160}>
-            <Text style={s.sectionTitle}>This Week</Text>
-            <Card style={s.weekCard}>
+          <>
+            <Text style={[s.sectionTitle, { color: palette.textSecondary }]}>This Week</Text>
+            <GlassCard level={1} style={s.weekCard}>
               <View style={s.weekChart}>
                 {weekWater.map((d, i) => {
                   const h = maxWeekOz > 0 ? (d.totalOz / maxWeekOz) * 100 : 0;
@@ -140,43 +136,43 @@ export default function WaterScreen({ navigation }) {
                         s.weekBar,
                         {
                           height: h * 0.7,
-                          backgroundColor: isFuture ? C.surface3 : metGoal ? C.blue : C.blue + '40',
+                          backgroundColor: isFuture ? palette.bg3 : metGoal ? accent.hydration : accent.hydration + '40',
                           opacity: isFuture ? 0.25 : 1,
-                          ...(isToday ? { borderWidth: 1, borderColor: C.blue } : {}),
+                          ...(isToday ? { borderWidth: 1, borderColor: accent.hydration } : {}),
                         }
                       ]} />
-                      <Text style={[s.weekLabel, isToday && { color: C.blue }]}>{DAY_LABELS[i]}</Text>
+                      <Text style={[s.weekLabel, { color: isToday ? accent.hydration : palette.textTertiary }]}>{DAY_LABELS[i]}</Text>
                     </View>
                   );
                 })}
               </View>
               {/* Goal line label */}
               <View style={s.goalLineRow}>
-                <View style={s.goalLine} />
-                <Text style={s.goalLineText}>Goal: {displayVol(waterGoalOz)}</Text>
+                <View style={[s.goalLine, { backgroundColor: accent.hydration + '30' }]} />
+                <Text style={[s.goalLineText, { color: palette.textTertiary }]}>Goal: {displayVol(waterGoalOz)}</Text>
               </View>
-            </Card>
-          </FadeIn>
+            </GlassCard>
+          </>
         )}
 
         {/* Today's entries */}
-        <Text style={s.sectionTitle}>Today's Log</Text>
+        <Text style={[s.sectionTitle, { color: palette.textSecondary }]}>Today's Log</Text>
         {waterData.entries.length === 0 ? (
           <View style={s.emptyState}>
-            <Icon name="water-outline" size={36} color={C.textTertiary} />
-            <Text style={s.emptyText}>No drinks logged yet</Text>
+            <Icon name="water-outline" size={36} color={palette.textTertiary} />
+            <Text style={[s.emptyText, { color: palette.textTertiary }]}>No drinks logged yet</Text>
           </View>
         ) : (
           [...waterData.entries].reverse().map((entry, i) => {
             const time = entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
             return (
-              <View key={i} style={s.entryRow}>
-                <View style={s.entryDot} />
+              <View key={i} style={[s.entryRow, { backgroundColor: palette.bg1, borderColor: palette.border }]}>
+                <View style={[s.entryDot, { backgroundColor: accent.hydration }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.entryLabel}>{entry.label || 'Water'}</Text>
-                  {time ? <Text style={s.entryTime}>{time}</Text> : null}
+                  <Text style={[s.entryLabel, { color: palette.textPrimary }]}>{entry.label || 'Water'}</Text>
+                  {time ? <Text style={[s.entryTime, { color: palette.textTertiary }]}>{time}</Text> : null}
                 </View>
-                <Text style={s.entryVol}>{displayVol(entry.oz)}</Text>
+                <Text style={[s.entryVol, { color: accent.hydration }]}>{displayVol(entry.oz)}</Text>
               </View>
             );
           })
@@ -188,74 +184,62 @@ export default function WaterScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
+  safe: { flex: 1 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
 
   // Progress card
   progressCard: { marginBottom: SPACING.md, alignItems: 'center' },
-  ringValue: { fontSize: 20, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
-  ringGoal: { fontSize: 11, color: C.textTertiary, fontWeight: '500', marginTop: 2 },
-  ringPct: { fontSize: 13, fontWeight: '800', color: C.blue, marginTop: 4 },
-  ringLabel: { fontSize: 14, fontWeight: '800', color: C.blue, marginTop: 4 },
-  goalNote: { fontSize: 11, color: C.textTertiary, textAlign: 'center', marginTop: SPACING.sm },
+  ringValue: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  ringGoal: { fontSize: 11, fontWeight: '500', marginTop: 2 },
+  ringPct: { fontSize: 13, fontWeight: '800', marginTop: 4 },
+  ringLabel: { fontSize: 14, fontWeight: '800', marginTop: 4 },
+  goalNote: { fontSize: 11, textAlign: 'center', marginTop: SPACING.sm },
 
   // Section title
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: C.textSecondary, marginBottom: SPACING.sm, marginTop: SPACING.xs },
+  sectionTitle: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.sm, marginTop: SPACING.xs },
 
   // Size buttons
   sizeGrid: { flexDirection: 'row', gap: 10, marginBottom: SPACING.sm },
   sizeBtn: {
     flex: 1, alignItems: 'center', gap: 6,
-    backgroundColor: C.surface1, borderRadius: RADIUS.lg,
-    paddingVertical: 14, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 14, borderWidth: 1,
   },
-  sizeName: { fontSize: 12, fontWeight: '700', color: C.textPrimary },
-  sizeVol: { fontSize: 10, fontWeight: '600', color: C.textTertiary },
+  sizeName: { fontSize: 12, fontWeight: '700' },
+  sizeVol: { fontSize: 10, fontWeight: '600' },
 
   // Undo
   undoBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     alignSelf: 'center', paddingVertical: 8, marginBottom: SPACING.md,
   },
-  undoText: { fontSize: 12, color: C.textTertiary, fontWeight: '600' },
+  undoText: { fontSize: 12, fontWeight: '600' },
 
   // Week chart
   weekCard: { marginBottom: SPACING.lg },
   weekChart: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', height: 90 },
   weekBarWrap: { flex: 1, alignItems: 'center', gap: 6 },
   weekBar: { width: '100%', borderRadius: 5, minHeight: 4 },
-  weekLabel: { fontSize: 10, color: C.textTertiary, fontWeight: '600' },
+  weekLabel: { fontSize: 10, fontWeight: '600' },
   goalLineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  goalLine: { flex: 1, height: 1, backgroundColor: C.blue + '30' },
-  goalLineText: { fontSize: 10, color: C.textTertiary, fontWeight: '600' },
+  goalLine: { flex: 1, height: 1 },
+  goalLineText: { fontSize: 10, fontWeight: '600' },
 
   // Entries
   entryRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.surface1, borderRadius: RADIUS.md,
+    borderRadius: RADIUS.md,
     padding: 14, marginBottom: 6,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
   },
-  entryDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.blue },
-  entryLabel: { fontSize: 14, fontWeight: '600', color: C.textPrimary },
-  entryTime: { fontSize: 11, color: C.textTertiary, marginTop: 1 },
-  entryVol: { fontSize: 14, fontWeight: '800', color: C.blue },
+  entryDot: { width: 8, height: 8, borderRadius: 4 },
+  entryLabel: { fontSize: 14, fontWeight: '600' },
+  entryTime: { fontSize: 11, marginTop: 1 },
+  entryVol: { fontSize: 14, fontWeight: '800' },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xl, gap: 8 },
-  emptyText: { fontSize: 14, fontWeight: '600', color: C.textTertiary },
+  emptyText: { fontSize: 14, fontWeight: '600' },
 });

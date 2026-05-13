@@ -4,14 +4,16 @@ import {
   StyleSheet, ScrollView, StatusBar, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import { PillButton, FadeIn } from '../components/UI';
+import { GlassCard, GradientButton, BlurHeader } from '../components';
 import Icon from '../components/Icon';
 import { logWeight, subscribeWeightLog } from '../services/firestore';
 import { hapticSuccess } from '../utils/haptics';
 
 export default function WeightScreen({ navigation }) {
+  const { mode, palette, accent } = useTheme();
   const { user, profile } = useApp();
   const units = profile?.units || 'Imperial';
   const weightUnit = units === 'Imperial' ? 'lbs' : 'kg';
@@ -53,72 +55,70 @@ export default function WeightScreen({ navigation }) {
   const trend = latest && previous ? latest.value - previous.value : null;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+    <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityLabel="Go back">
-          <Icon name="chevron-back" size={22} color={C.accent} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Weight</Text>
-      </View>
+      <BlurHeader
+        title="Weight"
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* Current weight card */}
-        <View style={s.currentCard}>
-          <Text style={s.currentLabel}>Current Weight</Text>
+        <GlassCard level={2} style={s.currentCard}>
+          <Text style={[s.currentLabel, { color: palette.textSecondary }]}>Current Weight</Text>
           <View style={s.currentRow}>
-            <Text style={s.currentValue}>
+            <Text style={[s.currentValue, { color: palette.textPrimary }]}>
               {latest ? latest.value.toFixed(1) : '--'}
             </Text>
-            <Text style={s.currentUnit}>{weightUnit}</Text>
+            <Text style={[s.currentUnit, { color: palette.textSecondary }]}>{weightUnit}</Text>
           </View>
           {trend !== null && (
             <View style={s.trendRow}>
               <Icon
                 name={trend > 0 ? 'arrow-up' : trend < 0 ? 'arrow-down' : 'remove'}
                 size={14}
-                color={trend > 0 ? C.red : trend < 0 ? C.accent : C.textTertiary}
+                color={trend > 0 ? accent.red : trend < 0 ? accent.green : palette.textTertiary}
               />
-              <Text style={[s.trendText, { color: trend > 0 ? C.red : trend < 0 ? C.accent : C.textTertiary }]}>
+              <Text style={[s.trendText, { color: trend > 0 ? accent.red : trend < 0 ? accent.green : palette.textTertiary }]}>
                 {Math.abs(trend).toFixed(1)} {weightUnit} from last entry
               </Text>
             </View>
           )}
-        </View>
+        </GlassCard>
 
         {/* Log weight input */}
-        <View style={s.inputCard}>
-          <Text style={s.inputLabel}>Log Weight</Text>
+        <GlassCard level={1} style={s.inputCard}>
+          <Text style={[s.inputLabel, { color: palette.textSecondary }]}>Log Weight</Text>
           <View style={s.inputRow}>
             <TextInput
-              style={s.input}
+              style={[s.input, { backgroundColor: palette.bg2, color: palette.textPrimary, borderColor: palette.border }]}
               placeholder={`e.g. ${units === 'Imperial' ? '165' : '75'}`}
-              placeholderTextColor={C.textTertiary}
+              placeholderTextColor={palette.textTertiary}
               value={input}
               onChangeText={setInput}
               keyboardType="decimal-pad"
               returnKeyType="done"
             />
-            <Text style={s.inputUnit}>{weightUnit}</Text>
+            <Text style={[s.inputUnit, { color: palette.textTertiary }]}>{weightUnit}</Text>
           </View>
-          <PillButton
+          <GradientButton
             label={saving ? 'Saving...' : 'Log Weight'}
             onPress={handleLog}
             disabled={saving || !input}
             style={{ marginTop: SPACING.sm }}
           />
-        </View>
+        </GlassCard>
 
         {/* History */}
-        <Text style={s.historyTitle}>History</Text>
+        <Text style={[s.historyTitle, { color: palette.textSecondary }]}>History</Text>
         {sorted.length === 0 ? (
           <View style={s.emptyState}>
-            <Icon name="scale-outline" size={40} color={C.textTertiary} />
-            <Text style={s.emptyText}>No entries yet</Text>
-            <Text style={s.emptySub}>Log your weight to start tracking</Text>
+            <Icon name="scale-outline" size={40} color={palette.textTertiary} />
+            <Text style={[s.emptyText, { color: palette.textSecondary }]}>No entries yet</Text>
+            <Text style={[s.emptySub, { color: palette.textTertiary }]}>Log your weight to start tracking</Text>
           </View>
         ) : (
           sorted.map((entry, i) => {
@@ -128,14 +128,14 @@ export default function WeightScreen({ navigation }) {
             const diff = prev ? entry.value - prev.value : null;
 
             return (
-              <View key={entry.id || i} style={s.historyRow}>
-                <View style={s.historyDot} />
+              <View key={entry.id || i} style={[s.historyRow, { backgroundColor: palette.bg1, borderColor: palette.border }]}>
+                <View style={[s.historyDot, { backgroundColor: accent.primary }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={s.historyDate}>{dateStr}</Text>
+                  <Text style={[s.historyDate, { color: palette.textPrimary }]}>{dateStr}</Text>
                 </View>
-                <Text style={s.historyValue}>{entry.value.toFixed(1)} {entry.unit || weightUnit}</Text>
+                <Text style={[s.historyValue, { color: palette.textPrimary }]}>{entry.value.toFixed(1)} {entry.unit || weightUnit}</Text>
                 {diff !== null && (
-                  <Text style={[s.historyDiff, { color: diff > 0 ? C.red : diff < 0 ? C.accent : C.textTertiary }]}>
+                  <Text style={[s.historyDiff, { color: diff > 0 ? accent.red : diff < 0 ? accent.green : palette.textTertiary }]}>
                     {diff > 0 ? '+' : ''}{diff.toFixed(1)}
                   </Text>
                 )}
@@ -150,66 +150,50 @@ export default function WeightScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
+  safe: { flex: 1 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
 
   // Current weight
   currentCard: {
-    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
-    padding: SPACING.lg, borderWidth: 1, borderColor: C.border,
     alignItems: 'center', marginBottom: SPACING.md,
   },
-  currentLabel: { fontSize: 13, fontWeight: '600', color: C.textSecondary, marginBottom: 8 },
+  currentLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   currentRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-  currentValue: { fontSize: 48, fontWeight: '900', color: C.textPrimary, letterSpacing: -2 },
-  currentUnit: { fontSize: 16, fontWeight: '600', color: C.textSecondary },
+  currentValue: { fontSize: 48, fontWeight: '900', letterSpacing: -2 },
+  currentUnit: { fontSize: 16, fontWeight: '600' },
   trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   trendText: { fontSize: 13, fontWeight: '600' },
 
   // Input
   inputCard: {
-    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
-    padding: SPACING.md, borderWidth: 1, borderColor: C.border,
     marginBottom: SPACING.lg,
   },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: C.textSecondary, marginBottom: 8 },
+  inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: {
-    flex: 1, backgroundColor: C.surface2, borderRadius: RADIUS.md,
+    flex: 1, borderRadius: RADIUS.md,
     paddingHorizontal: 16, paddingVertical: 14,
-    color: C.textPrimary, fontSize: 18, fontWeight: '700',
-    borderWidth: 1, borderColor: C.border,
+    fontSize: 18, fontWeight: '700',
+    borderWidth: 1,
   },
-  inputUnit: { fontSize: 16, fontWeight: '600', color: C.textTertiary },
+  inputUnit: { fontSize: 16, fontWeight: '600' },
 
   // History
-  historyTitle: { fontSize: 13, fontWeight: '600', color: C.textSecondary, marginBottom: SPACING.sm },
+  historyTitle: { fontSize: 13, fontWeight: '600', marginBottom: SPACING.sm },
   historyRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.surface1, borderRadius: RADIUS.md,
+    borderRadius: RADIUS.md,
     padding: 14, marginBottom: 6,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
   },
-  historyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
-  historyDate: { fontSize: 14, fontWeight: '600', color: C.textPrimary },
-  historyValue: { fontSize: 15, fontWeight: '800', color: C.textPrimary },
+  historyDot: { width: 8, height: 8, borderRadius: 4 },
+  historyDate: { fontSize: 14, fontWeight: '600' },
+  historyValue: { fontSize: 15, fontWeight: '800' },
   historyDiff: { fontSize: 12, fontWeight: '700', width: 44, textAlign: 'right' },
 
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxl, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '700', color: C.textSecondary },
-  emptySub: { fontSize: 13, color: C.textTertiary },
+  emptyText: { fontSize: 16, fontWeight: '700' },
+  emptySub: { fontSize: 13 },
 });
