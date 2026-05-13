@@ -4,9 +4,10 @@ import {
   ScrollView, StatusBar, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import { Card, FadeIn } from '../components/UI';
+import { GlassCard, BlurHeader } from '../components';
 import Icon from '../components/Icon';
 import { hapticSelection } from '../utils/haptics';
 import { getWaterWeek } from '../services/firestore';
@@ -16,6 +17,7 @@ const DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'
 
 export default function WeeklyDetailScreen({ navigation }) {
   const { loggedMeals, completedWorkouts, calGoal, user, waterGoalOz, units } = useApp();
+  const { mode, palette, accent } = useTheme();
   const [selectedDay, setSelectedDay] = useState(null);
   const [weekWater, setWeekWater] = useState([]);
   const isMetric = units === 'Metric';
@@ -85,27 +87,20 @@ export default function WeeklyDetailScreen({ navigation }) {
   const activeDay = selectedDay !== null ? daily[selectedDay] : null;
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+    <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityLabel="Go back">
-          <Icon name="chevron-back" size={22} color={C.accent} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Weekly Progress</Text>
-      </View>
+      <BlurHeader title="Weekly Progress" onBack={() => navigation.goBack()} />
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={false} tintColor={C.accent} />}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={false} tintColor={accent.primary} />}>
 
         {/* Bar chart card */}
-        <FadeIn delay={0}>
-        <Card style={s.chartCard}>
+        <GlassCard level={1} style={s.chartCard}>
           {selectedDay !== null && (
-            <Text style={s.dayLabel}>{DAY_NAMES[selectedDay]}, {activeDay.shortDate}</Text>
+            <Text style={[s.dayLabel, { color: palette.textSecondary }]}>{DAY_NAMES[selectedDay]}, {activeDay.shortDate}</Text>
           )}
           {selectedDay === null && (
-            <Text style={s.dayLabel}>This Week</Text>
+            <Text style={[s.dayLabel, { color: palette.textSecondary }]}>This Week</Text>
           )}
 
           <View style={s.barChart}>
@@ -127,15 +122,15 @@ export default function WeeklyDetailScreen({ navigation }) {
                     s.bar,
                     {
                       height: h * 0.9,
-                      backgroundColor: isSelected ? C.accent : isFuture ? C.surface3 : (isToday && selectedDay === null) ? C.accent : C.accentDim,
+                      backgroundColor: isSelected ? accent.primary : isFuture ? palette.bg3 : (isToday && selectedDay === null) ? accent.primary : accent.primaryDim,
                       opacity: isSelected ? 1 : isFuture ? 0.25 : (isToday && selectedDay === null) ? 1 : 0.55,
-                      ...(isSelected || (isToday && selectedDay === null) ? SHADOW.accent : {}),
                     }
                   ]} />
                   <Text style={[
                     s.barDay,
-                    isToday && selectedDay === null && { color: C.accent },
-                    isSelected && { color: C.accent, fontWeight: '800' },
+                    { color: palette.textTertiary },
+                    isToday && selectedDay === null && { color: accent.primary },
+                    isSelected && { color: accent.primary, fontWeight: '800' },
                   ]}>
                     {DAY_LABELS[i]}
                   </Text>
@@ -143,37 +138,35 @@ export default function WeeklyDetailScreen({ navigation }) {
               );
             })}
           </View>
-        </Card>
-        </FadeIn>
+        </GlassCard>
 
         {/* Summary stats */}
-        <FadeIn delay={100}>
-        <Card style={s.statsCard}>
-          <Text style={s.statsTitle}>{selectedDay !== null ? DAY_NAMES[selectedDay] : 'Week'} Overview</Text>
+        <GlassCard level={1} style={s.statsCard}>
+          <Text style={[s.statsTitle, { color: palette.textSecondary }]}>{selectedDay !== null ? DAY_NAMES[selectedDay] : 'Week'} Overview</Text>
           <View style={s.statsGrid}>
             <StatTile
-              icon="restaurant-outline" color={C.accent}
+              icon="restaurant-outline" color={accent.primary}
               value={activeDay ? activeDay.meals : weekMeals.length}
               label="Meals Logged"
             />
             <StatTile
-              icon="flame-outline" color={C.carbs}
+              icon="flame-outline" color={accent.carbs}
               value={activeDay ? activeDay.cal : weekCalConsumed}
               label="Cal Consumed"
             />
             <StatTile
-              icon="barbell-outline" color={C.blue}
+              icon="barbell-outline" color={accent.blue}
               value={activeDay ? activeDay.workouts : weekWorkouts.length}
               label="Workouts"
             />
             <StatTile
-              icon="flash-outline" color={C.red}
+              icon="flash-outline" color={accent.red}
               value={activeDay ? activeDay.calBurned : weekCalBurned}
               label="Cal Burned"
             />
             {weekWater.length > 0 && (
               <StatTile
-                icon="water-outline" color={C.blue}
+                icon="water-outline" color={accent.blue}
                 value={(() => {
                   const oz = selectedDay !== null && weekWater[selectedDay]
                     ? weekWater[selectedDay].totalOz
@@ -184,13 +177,11 @@ export default function WeeklyDetailScreen({ navigation }) {
               />
             )}
           </View>
-        </Card>
-        </FadeIn>
+        </GlassCard>
 
         {/* Macros breakdown */}
-        <FadeIn delay={200}>
-        <Card style={s.statsCard}>
-          <Text style={s.statsTitle}>
+        <GlassCard level={1} style={s.statsCard}>
+          <Text style={[s.statsTitle, { color: palette.textSecondary }]}>
             {selectedDay !== null ? DAY_NAMES[selectedDay] : 'Week'} Macros
           </Text>
           <View style={s.macroRows}>
@@ -198,49 +189,51 @@ export default function WeeklyDetailScreen({ navigation }) {
               label="Protein"
               value={activeDay ? activeDay.protein : daily.reduce((a, d) => a + d.protein, 0)}
               unit="g"
-              color={C.protein}
+              color={accent.protein}
             />
             <MacroRow
               label="Carbs"
               value={activeDay ? activeDay.carbs : daily.reduce((a, d) => a + d.carbs, 0)}
               unit="g"
-              color={C.carbs}
+              color={accent.carbs}
             />
             <MacroRow
               label="Fat"
               value={activeDay ? activeDay.fat : daily.reduce((a, d) => a + d.fat, 0)}
               unit="g"
-              color={C.fat}
+              color={accent.fat}
             />
           </View>
-        </Card>
-        </FadeIn>
+        </GlassCard>
 
         {/* Daily breakdown list */}
-        <FadeIn delay={300}>
-        <Text style={s.sectionTitle}>Daily Breakdown</Text>
+        <Text style={[s.sectionTitle, { color: palette.textSecondary }]}>Daily Breakdown</Text>
         {daily.map((d, i) => {
           const isToday = i === todayIdx;
           const isFuture = i > todayIdx;
           return (
             <TouchableOpacity
               key={i}
-              style={[s.dayRow, selectedDay === i && s.dayRowSelected]}
+              style={[
+                s.dayRow,
+                { backgroundColor: palette.bg1, borderColor: palette.border },
+                selectedDay === i && { borderColor: accent.primary + '50', backgroundColor: accent.primaryBg },
+              ]}
               onPress={() => handleBarPress(i)}
               activeOpacity={0.7}
             >
-              <View style={[s.dayDot, { backgroundColor: isFuture ? C.surface3 : d.meals > 0 ? C.accent : C.textTertiary }]} />
+              <View style={[s.dayDot, { backgroundColor: isFuture ? palette.bg3 : d.meals > 0 ? accent.primary : palette.textTertiary }]} />
               <View style={{ flex: 1 }}>
-                <Text style={[s.dayRowName, isToday && { color: C.accent }]}>
+                <Text style={[s.dayRowName, { color: palette.textPrimary }, isToday && { color: accent.primary }]}>
                   {DAY_NAMES[i]}{isToday ? ' (Today)' : ''}
                 </Text>
-                <Text style={s.dayRowSub}>{d.shortDate}</Text>
+                <Text style={[s.dayRowSub, { color: palette.textTertiary }]}>{d.shortDate}</Text>
               </View>
               <View style={s.dayRowStats}>
-                <Text style={s.dayRowMeals}>{d.meals} meals</Text>
-                <Text style={s.dayRowCal}>{d.cal} cal</Text>
+                <Text style={[s.dayRowMeals, { color: palette.textPrimary }]}>{d.meals} meals</Text>
+                <Text style={[s.dayRowCal, { color: palette.textSecondary }]}>{d.cal} cal</Text>
                 {weekWater[i] && weekWater[i].totalOz > 0 && (
-                  <Text style={s.dayRowWater}>
+                  <Text style={[s.dayRowWater, { color: accent.blue }]}>
                     {isMetric ? `${Math.round(weekWater[i].totalOz * 29.5735)} ml` : `${weekWater[i].totalOz} oz`}
                   </Text>
                 )}
@@ -248,7 +241,6 @@ export default function WeeklyDetailScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
-        </FadeIn>
 
       </ScrollView>
     </SafeAreaView>
@@ -256,91 +248,80 @@ export default function WeeklyDetailScreen({ navigation }) {
 }
 
 function StatTile({ icon, color, value, label }) {
+  const { palette } = useTheme();
   return (
-    <View style={s.statTile}>
+    <View style={[s.statTile, { backgroundColor: palette.bg2, borderColor: palette.border }]}>
       <View style={[s.statIconWrap, { backgroundColor: color + '15' }]}>
         <Icon name={icon} size={18} color={color} />
       </View>
-      <Text style={s.statVal}>{value}</Text>
-      <Text style={s.statLbl}>{label}</Text>
+      <Text style={[s.statVal, { color: palette.textPrimary }]}>{value}</Text>
+      <Text style={[s.statLbl, { color: palette.textTertiary }]}>{label}</Text>
     </View>
   );
 }
 
 function MacroRow({ label, value, unit, color }) {
+  const { palette } = useTheme();
   return (
     <View style={s.macroRow}>
       <View style={[s.macroDot, { backgroundColor: color }]} />
-      <Text style={s.macroLabel}>{label}</Text>
+      <Text style={[s.macroLabel, { color: palette.textPrimary }]}>{label}</Text>
       <Text style={[s.macroVal, { color }]}>{Math.round(value)}{unit}</Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
+  safe: { flex: 1 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
 
   // Chart card
   chartCard: { marginBottom: SPACING.md },
-  dayLabel: { fontSize: 14, fontWeight: '700', color: C.textSecondary, textAlign: 'center', marginBottom: SPACING.sm },
+  dayLabel: { fontSize: 14, fontWeight: '700', textAlign: 'center', marginBottom: SPACING.sm },
   barChart: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', height: 110, paddingTop: SPACING.sm },
   barWrap: { flex: 1, alignItems: 'center', gap: 8 },
   bar: { width: '100%', borderRadius: 6, minHeight: 6 },
-  barDay: { fontSize: 11, color: C.textTertiary, fontWeight: '600' },
+  barDay: { fontSize: 11, fontWeight: '600' },
 
   // Stats card
   statsCard: { marginBottom: SPACING.md },
-  statsTitle: { fontSize: 13, fontWeight: '700', color: C.textSecondary, marginBottom: SPACING.sm },
+  statsTitle: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.sm },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statTile: {
     flex: 1, minWidth: '45%',
-    backgroundColor: C.surface2, borderRadius: RADIUS.md,
+    borderRadius: RADIUS.md,
     padding: SPACING.sm, alignItems: 'center', gap: 6,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
   },
   statIconWrap: {
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
   },
-  statVal: { fontSize: 22, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
-  statLbl: { fontSize: 10, fontWeight: '600', color: C.textTertiary },
+  statVal: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  statLbl: { fontSize: 10, fontWeight: '600' },
 
   // Macros
   macroRows: { gap: 10 },
   macroRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   macroDot: { width: 10, height: 10, borderRadius: 5 },
-  macroLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: C.textPrimary },
+  macroLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
   macroVal: { fontSize: 16, fontWeight: '800' },
 
   // Daily breakdown
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: C.textSecondary, marginBottom: SPACING.sm, marginTop: SPACING.xs },
+  sectionTitle: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.sm, marginTop: SPACING.xs },
   dayRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.surface1, borderRadius: RADIUS.md,
+    borderRadius: RADIUS.md,
     padding: 14, marginBottom: 6,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
   },
-  dayRowSelected: { borderColor: C.accent + '50', backgroundColor: C.accentBgSm },
   dayDot: { width: 8, height: 8, borderRadius: 4 },
-  dayRowName: { fontSize: 14, fontWeight: '700', color: C.textPrimary },
-  dayRowSub: { fontSize: 11, color: C.textTertiary, marginTop: 1 },
+  dayRowName: { fontSize: 14, fontWeight: '700' },
+  dayRowSub: { fontSize: 11, marginTop: 1 },
   dayRowStats: { alignItems: 'flex-end' },
-  dayRowMeals: { fontSize: 13, fontWeight: '700', color: C.textPrimary },
-  dayRowCal: { fontSize: 11, color: C.textSecondary, marginTop: 1 },
-  dayRowWater: { fontSize: 11, color: C.blue, marginTop: 1 },
+  dayRowMeals: { fontSize: 13, fontWeight: '700' },
+  dayRowCal: { fontSize: 11, marginTop: 1 },
+  dayRowWater: { fontSize: 11, marginTop: 1 },
 });

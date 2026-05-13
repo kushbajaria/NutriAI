@@ -1,19 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Modal,
+  View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, StatusBar, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { RECIPES } from '../constants/data';
 import { useApp } from '../context/AppContext';
-import { Badge, FadeIn } from '../components/UI';
+import { GlassCard, GradientButton, BlurHeader, GlassBottomSheet, Badge } from '../components';
 import Icon from '../components/Icon';
 
 const FILTERS = ['All', 'High Protein', 'Quick', 'Vegetarian', 'Meal Prep', 'Clean Eating'];
 
 export default function FoodSearchScreen({ navigation }) {
   const { pantry, logMeal } = useApp();
+  const { mode, palette, accent, gradients } = useTheme();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
   const [showCustom, setShowCustom] = useState(false);
@@ -50,24 +52,18 @@ export default function FoodSearchScreen({ navigation }) {
   }, [query, filter, pantry]);
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+    <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityLabel="Go back">
-          <Icon name="chevron-back" size={22} color={C.accent} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Find Recipes</Text>
-      </View>
+      <BlurHeader title="Find Recipes" onBack={() => navigation.goBack()} />
 
       {/* Search bar */}
-      <View style={s.searchWrap}>
-        <Icon name="search-outline" size={18} color={C.textTertiary} />
+      <View style={[s.searchWrap, { backgroundColor: palette.bg2, borderColor: palette.border }]}>
+        <Icon name="search-outline" size={18} color={palette.textTertiary} />
         <TextInput
-          style={s.searchInput}
+          style={[s.searchInput, { color: palette.textPrimary }]}
           placeholder="Search by name or ingredient..."
-          placeholderTextColor={C.textTertiary}
+          placeholderTextColor={palette.textTertiary}
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"
@@ -75,7 +71,7 @@ export default function FoodSearchScreen({ navigation }) {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')}>
-            <Icon name="close-circle" size={18} color={C.textTertiary} />
+            <Icon name="close-circle" size={18} color={palette.textTertiary} />
           </TouchableOpacity>
         )}
       </View>
@@ -85,237 +81,257 @@ export default function FoodSearchScreen({ navigation }) {
         {FILTERS.map(f => (
           <TouchableOpacity
             key={f}
-            style={[s.filterChip, filter === f && s.filterChipActive]}
+            style={[
+              s.filterChip,
+              { borderColor: palette.border, backgroundColor: palette.glass1Bg },
+              filter === f && { borderColor: accent.primary, backgroundColor: accent.primaryBg },
+            ]}
             onPress={() => setFilter(f)}
             activeOpacity={0.7}
           >
-            <Text style={[s.filterText, filter === f && s.filterTextActive]}>{f}</Text>
+            <Text style={[
+              s.filterText,
+              { color: palette.textSecondary },
+              filter === f && { color: accent.primary, fontWeight: '700' },
+            ]}>{f}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Results */}
       <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-        <Text style={s.resultCount}>{results.length} recipe{results.length !== 1 ? 's' : ''}</Text>
+        <Text style={[s.resultCount, { color: palette.textTertiary }]}>{results.length} recipe{results.length !== 1 ? 's' : ''}</Text>
 
         {results.map(r => (
           <TouchableOpacity
             key={r.id}
-            style={s.card}
+            style={[s.card, { backgroundColor: palette.bg1, borderColor: palette.border }]}
             onPress={() => navigation.navigate('Recipe', { recipe: r })}
             activeOpacity={0.8}
           >
-            <View style={s.cardIcon}>
-              <Icon name={r.icon} size={24} color={C.accent} />
+            <View style={[s.cardIcon, { backgroundColor: palette.bg3 }]}>
+              <Icon name={r.icon} size={24} color={accent.primary} />
             </View>
             <View style={s.cardBody}>
               <View style={s.cardTop}>
-                <Text style={s.cardName} numberOfLines={1}>{r.name}</Text>
-                <Badge label={r.tag} color={C.accent} />
+                <Text style={[s.cardName, { color: palette.textPrimary }]} numberOfLines={1}>{r.name}</Text>
+                <Badge label={r.tag} color={accent.primary} />
               </View>
               <View style={s.cardMeta}>
-                <Text style={s.metaText}>{r.cal} cal</Text>
-                <Text style={s.metaDot}>·</Text>
-                <Text style={s.metaText}>{r.protein}g protein</Text>
-                <Text style={s.metaDot}>·</Text>
-                <Text style={s.metaText}>{r.prepTime + r.cookTime}m</Text>
+                <Text style={[s.metaText, { color: palette.textSecondary }]}>{r.cal} cal</Text>
+                <Text style={[s.metaDot, { color: palette.textTertiary }]}>·</Text>
+                <Text style={[s.metaText, { color: palette.textSecondary }]}>{r.protein}g protein</Text>
+                <Text style={[s.metaDot, { color: palette.textTertiary }]}>·</Text>
+                <Text style={[s.metaText, { color: palette.textSecondary }]}>{r.prepTime + r.cookTime}m</Text>
               </View>
               {r.matchCount > 0 && (
-                <Text style={[s.pantryMatch, r.canMake && { color: C.green }]}>
+                <Text style={[s.pantryMatch, { color: accent.primary }, r.canMake && { color: accent.green }]}>
                   {r.canMake ? 'All ingredients available' : `${r.matchCount}/${r.ingredients.length} in pantry`}
                 </Text>
               )}
             </View>
-            <Icon name="chevron-forward" size={18} color={C.textTertiary} />
+            <Icon name="chevron-forward" size={18} color={palette.textTertiary} />
           </TouchableOpacity>
         ))}
 
         {results.length === 0 && (
           <View style={s.emptyState}>
-            <Icon name="search-outline" size={40} color={C.textTertiary} />
-            <Text style={s.emptyText}>No recipes found</Text>
-            <Text style={s.emptySub}>Try a different search or filter</Text>
+            <Icon name="search-outline" size={40} color={palette.textTertiary} />
+            <Text style={[s.emptyText, { color: palette.textSecondary }]}>No recipes found</Text>
+            <Text style={[s.emptySub, { color: palette.textTertiary }]}>Try a different search or filter</Text>
           </View>
         )}
       </ScrollView>
 
       {/* Custom food FAB */}
-      <TouchableOpacity style={s.fab} onPress={() => setShowCustom(true)} activeOpacity={0.85} accessibilityLabel="Add custom food">
-        <Icon name="create-outline" size={22} color={C.textInverse} />
+      <TouchableOpacity
+        style={[s.fab, { backgroundColor: accent.primary }]}
+        onPress={() => setShowCustom(true)}
+        activeOpacity={0.85}
+        accessibilityLabel="Add custom food"
+      >
+        <Icon name="create-outline" size={22} color={palette.textInverse} />
       </TouchableOpacity>
 
-      {/* Custom food entry modal */}
-      <Modal visible={showCustom} transparent animationType="slide" onRequestClose={() => setShowCustom(false)}>
+      {/* Custom food entry bottom sheet */}
+      <GlassBottomSheet visible={showCustom} onClose={() => setShowCustom(false)} height={520}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowCustom(false)}>
-            <TouchableOpacity style={s.modalSheet} activeOpacity={1}>
-              <View style={s.modalHandle} />
-              <Text style={s.modalTitle}>Log Custom Food</Text>
+          <Text style={[s.modalTitle, { color: palette.textPrimary }]}>Log Custom Food</Text>
 
-              <View style={s.inputGroup}>
-                <Text style={s.inputLabel}>Food name</Text>
-                <TextInput style={s.input} value={customName} onChangeText={setCustomName} placeholder="e.g. Chicken Breast" placeholderTextColor={C.textTertiary} />
-              </View>
+          <View style={s.inputGroup}>
+            <Text style={[s.inputLabel, { color: palette.textTertiary }]}>Food name</Text>
+            <TextInput
+              style={[s.input, { backgroundColor: palette.bg2, borderColor: palette.border, color: palette.textPrimary }]}
+              value={customName}
+              onChangeText={setCustomName}
+              placeholder="e.g. Chicken Breast"
+              placeholderTextColor={palette.textTertiary}
+            />
+          </View>
 
-              <View style={s.inputRow}>
-                <View style={[s.inputGroup, { flex: 1 }]}>
-                  <Text style={s.inputLabel}>Calories</Text>
-                  <TextInput style={s.input} value={customCal} onChangeText={setCustomCal} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
-                </View>
-                <View style={[s.inputGroup, { flex: 1 }]}>
-                  <Text style={s.inputLabel}>Protein (g)</Text>
-                  <TextInput style={s.input} value={customProtein} onChangeText={setCustomProtein} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
-                </View>
-              </View>
+          <View style={s.inputRow}>
+            <View style={[s.inputGroup, { flex: 1 }]}>
+              <Text style={[s.inputLabel, { color: palette.textTertiary }]}>Calories</Text>
+              <TextInput
+                style={[s.input, { backgroundColor: palette.bg2, borderColor: palette.border, color: palette.textPrimary }]}
+                value={customCal}
+                onChangeText={setCustomCal}
+                placeholder="0"
+                placeholderTextColor={palette.textTertiary}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={[s.inputGroup, { flex: 1 }]}>
+              <Text style={[s.inputLabel, { color: palette.textTertiary }]}>Protein (g)</Text>
+              <TextInput
+                style={[s.input, { backgroundColor: palette.bg2, borderColor: palette.border, color: palette.textPrimary }]}
+                value={customProtein}
+                onChangeText={setCustomProtein}
+                placeholder="0"
+                placeholderTextColor={palette.textTertiary}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
 
-              <View style={s.inputRow}>
-                <View style={[s.inputGroup, { flex: 1 }]}>
-                  <Text style={s.inputLabel}>Carbs (g)</Text>
-                  <TextInput style={s.input} value={customCarbs} onChangeText={setCustomCarbs} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
-                </View>
-                <View style={[s.inputGroup, { flex: 1 }]}>
-                  <Text style={s.inputLabel}>Fat (g)</Text>
-                  <TextInput style={s.input} value={customFat} onChangeText={setCustomFat} placeholder="0" placeholderTextColor={C.textTertiary} keyboardType="numeric" />
-                </View>
-              </View>
+          <View style={s.inputRow}>
+            <View style={[s.inputGroup, { flex: 1 }]}>
+              <Text style={[s.inputLabel, { color: palette.textTertiary }]}>Carbs (g)</Text>
+              <TextInput
+                style={[s.input, { backgroundColor: palette.bg2, borderColor: palette.border, color: palette.textPrimary }]}
+                value={customCarbs}
+                onChangeText={setCustomCarbs}
+                placeholder="0"
+                placeholderTextColor={palette.textTertiary}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={[s.inputGroup, { flex: 1 }]}>
+              <Text style={[s.inputLabel, { color: palette.textTertiary }]}>Fat (g)</Text>
+              <TextInput
+                style={[s.input, { backgroundColor: palette.bg2, borderColor: palette.border, color: palette.textPrimary }]}
+                value={customFat}
+                onChangeText={setCustomFat}
+                placeholder="0"
+                placeholderTextColor={palette.textTertiary}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
 
-              {/* Meal time selection */}
-              <Text style={[s.inputLabel, { marginTop: 8 }]}>Meal time</Text>
-              <View style={s.mealTimeRow}>
-                {[
-                  { key: 'breakfast', label: 'Breakfast', icon: 'sunny-outline' },
-                  { key: 'lunch', label: 'Lunch', icon: 'restaurant-outline' },
-                  { key: 'dinner', label: 'Dinner', icon: 'moon-outline' },
-                  { key: 'snack', label: 'Snack', icon: 'cafe-outline' },
-                ].map(opt => (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[s.mealTimeChip, customMealTime === opt.key && s.mealTimeChipActive]}
-                    onPress={() => setCustomMealTime(opt.key)}
-                    activeOpacity={0.7}
-                  >
-                    <Icon name={opt.icon} size={14} color={customMealTime === opt.key ? C.accent : C.textTertiary} />
-                    <Text style={[s.mealTimeChipText, customMealTime === opt.key && { color: C.accent }]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
+          {/* Meal time selection */}
+          <Text style={[s.inputLabel, { color: palette.textTertiary, marginTop: 8 }]}>Meal time</Text>
+          <View style={s.mealTimeRow}>
+            {[
+              { key: 'breakfast', label: 'Breakfast', icon: 'sunny-outline' },
+              { key: 'lunch', label: 'Lunch', icon: 'restaurant-outline' },
+              { key: 'dinner', label: 'Dinner', icon: 'moon-outline' },
+              { key: 'snack', label: 'Snack', icon: 'cafe-outline' },
+            ].map(opt => (
               <TouchableOpacity
-                style={[s.logBtn, (!customName.trim() || !customCal) && { opacity: 0.4 }]}
-                disabled={!customName.trim() || !customCal}
-                onPress={() => {
-                  logMeal({
-                    id: `custom_${Date.now()}`,
-                    name: customName.trim(),
-                    cal: parseInt(customCal, 10) || 0,
-                    protein: parseInt(customProtein, 10) || 0,
-                    carbs: parseInt(customCarbs, 10) || 0,
-                    fat: parseInt(customFat, 10) || 0,
-                    icon: 'nutrition-outline',
-                    tag: 'Custom',
-                  }, customMealTime);
-                  setShowCustom(false);
-                  setCustomName(''); setCustomCal(''); setCustomProtein(''); setCustomCarbs(''); setCustomFat(''); setCustomMealTime(null);
-                  navigation.goBack();
-                }}
-                activeOpacity={0.85}
+                key={opt.key}
+                style={[
+                  s.mealTimeChip,
+                  { borderColor: palette.border, backgroundColor: palette.bg2 },
+                  customMealTime === opt.key && { borderColor: accent.primary, backgroundColor: accent.primaryBg },
+                ]}
+                onPress={() => setCustomMealTime(opt.key)}
+                activeOpacity={0.7}
               >
-                <Text style={s.logBtnText}>Log Food</Text>
+                <Icon name={opt.icon} size={14} color={customMealTime === opt.key ? accent.primary : palette.textTertiary} />
+                <Text style={[s.mealTimeChipText, { color: palette.textTertiary }, customMealTime === opt.key && { color: accent.primary }]}>{opt.label}</Text>
               </TouchableOpacity>
-            </TouchableOpacity>
-          </TouchableOpacity>
+            ))}
+          </View>
+
+          <GradientButton
+            label="Log Food"
+            onPress={() => {
+              logMeal({
+                id: `custom_${Date.now()}`,
+                name: customName.trim(),
+                cal: parseInt(customCal, 10) || 0,
+                protein: parseInt(customProtein, 10) || 0,
+                carbs: parseInt(customCarbs, 10) || 0,
+                fat: parseInt(customFat, 10) || 0,
+                icon: 'nutrition-outline',
+                tag: 'Custom',
+              }, customMealTime);
+              setShowCustom(false);
+              setCustomName(''); setCustomCal(''); setCustomProtein(''); setCustomCarbs(''); setCustomFat(''); setCustomMealTime(null);
+              navigation.goBack();
+            }}
+            disabled={!customName.trim() || !customCal}
+            gradient={gradients.primary}
+          />
         </KeyboardAvoidingView>
-      </Modal>
+      </GlassBottomSheet>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
+  safe: { flex: 1 },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     marginHorizontal: SPACING.md, marginTop: SPACING.sm,
-    backgroundColor: C.surface1, borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
     borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 12,
   },
-  searchInput: { flex: 1, fontSize: 15, color: C.textPrimary },
+  searchInput: { flex: 1, fontSize: 15 },
 
   filterScroll: { maxHeight: 48 },
   filterContent: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, gap: 8, flexDirection: 'row' },
   filterChip: {
     paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.border,
-    backgroundColor: C.surface1,
+    borderRadius: RADIUS.full, borderWidth: 1,
   },
-  filterChipActive: { borderColor: C.accent, backgroundColor: C.accentBgSm },
-  filterText: { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
-  filterTextActive: { color: C.accent, fontWeight: '700' },
+  filterText: { fontSize: 13, fontWeight: '500' },
 
   scroll: { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
-  resultCount: { fontSize: 12, color: C.textTertiary, fontWeight: '600', marginBottom: SPACING.sm },
+  resultCount: { fontSize: 12, fontWeight: '600', marginBottom: SPACING.sm },
 
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.surface1, borderRadius: RADIUS.lg,
+    borderRadius: RADIUS.lg,
     padding: 14, marginBottom: 8,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
   },
   cardIcon: {
     width: 48, height: 48, borderRadius: RADIUS.md,
-    backgroundColor: C.surface3, alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   cardBody: { flex: 1, gap: 4 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  cardName: { fontSize: 15, fontWeight: '700', color: C.textPrimary, flex: 1 },
+  cardName: { fontSize: 15, fontWeight: '700', flex: 1 },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 12, color: C.textSecondary },
-  metaDot: { fontSize: 12, color: C.textTertiary },
-  pantryMatch: { fontSize: 11, color: C.accent, fontWeight: '600' },
+  metaText: { fontSize: 12 },
+  metaDot: { fontSize: 12 },
+  pantryMatch: { fontSize: 11, fontWeight: '600' },
 
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxl, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '700', color: C.textSecondary },
-  emptySub: { fontSize: 13, color: C.textTertiary },
+  emptyText: { fontSize: 16, fontWeight: '700' },
+  emptySub: { fontSize: 13 },
 
   // FAB
   fab: {
     position: 'absolute', bottom: 24, right: 20,
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
-    ...SHADOW.accent,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
   },
 
-  // Custom food modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: C.surface1, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl,
-    padding: SPACING.lg, paddingBottom: 40,
-  },
-  modalHandle: {
-    width: 36, height: 4, borderRadius: 2, backgroundColor: C.surface3,
-    alignSelf: 'center', marginBottom: SPACING.md,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: C.textPrimary, marginBottom: SPACING.md },
+  // Modal content
+  modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: SPACING.md },
 
   inputGroup: { marginBottom: 12 },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: C.textTertiary, marginBottom: 6, letterSpacing: 0.3 },
+  inputLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.3 },
   input: {
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
     borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: C.textPrimary,
+    fontSize: 15,
   },
   inputRow: { flexDirection: 'row', gap: 10 },
 
@@ -323,14 +339,7 @@ const s = StyleSheet.create({
   mealTimeChip: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
     paddingVertical: 10, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2,
+    borderWidth: 1,
   },
-  mealTimeChipActive: { borderColor: C.accent, backgroundColor: C.accentBgSm },
-  mealTimeChipText: { fontSize: 11, fontWeight: '600', color: C.textTertiary },
-
-  logBtn: {
-    height: 52, backgroundColor: C.accent, borderRadius: RADIUS.full,
-    alignItems: 'center', justifyContent: 'center', ...SHADOW.accent,
-  },
-  logBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
+  mealTimeChipText: { fontSize: 11, fontWeight: '600' },
 });
