@@ -4,10 +4,11 @@ import {
   ScrollView, StatusBar, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { WORKOUTS } from '../constants/data';
-import { Card, FadeIn } from '../components/UI';
+import { GlassCard, BlurHeader } from '../components';
 import Icon from '../components/Icon';
 
 function formatElapsed(secs) {
@@ -19,6 +20,7 @@ function formatElapsed(secs) {
 
 export default function WorkoutLogScreen({ navigation }) {
   const { completedWorkouts } = useApp();
+  const { mode, palette, accent } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }, []);
 
@@ -59,39 +61,30 @@ export default function WorkoutLogScreen({ navigation }) {
   }, [completedWorkouts]);
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+    <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} accessibilityLabel="Go back">
-          <Icon name="chevron-back" size={22} color={C.accent} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Workout Log</Text>
-      </View>
+      <BlurHeader title="Workout Log" onBack={() => navigation.goBack()} />
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent.primary} />}>
 
         {/* Weekly summary */}
-        <FadeIn delay={0}>
-        <Card style={s.summaryCard}>
-          <Text style={s.summaryLabel}>This Week</Text>
+        <GlassCard level={2} style={s.summaryCard}>
+          <Text style={[s.summaryLabel, { color: palette.textSecondary }]}>This Week</Text>
           <View style={s.summaryRow}>
-            <SummaryItem icon="barbell-outline" value={weekStats.count} label="Workouts" color={C.accent} />
-            <SummaryItem icon="flame-outline" value={weekStats.cal} label="Cal Burned" color={C.fat} />
-            <SummaryItem icon="time-outline" value={formatElapsed(weekStats.time) || '0:00'} label="Total Time" color={C.blue} />
-            <SummaryItem icon="calendar-outline" value={weekStats.days} label="Active Days" color={C.protein} />
+            <SummaryItem icon="barbell-outline" value={weekStats.count} label="Workouts" color={accent.primary} />
+            <SummaryItem icon="flame-outline" value={weekStats.cal} label="Cal Burned" color={accent.energy} />
+            <SummaryItem icon="time-outline" value={formatElapsed(weekStats.time) || '0:00'} label="Total Time" color={accent.blue} />
+            <SummaryItem icon="calendar-outline" value={weekStats.days} label="Active Days" color={accent.protein} />
           </View>
-        </Card>
-        </FadeIn>
+        </GlassCard>
 
         {/* Workout list grouped by date */}
-        <FadeIn delay={100}>
         {grouped.length === 0 ? (
           <View style={s.emptyState}>
-            <Icon name="barbell-outline" size={40} color={C.textTertiary} />
-            <Text style={s.emptyText}>No workouts yet</Text>
-            <Text style={s.emptySub}>Complete a workout to see it here</Text>
+            <Icon name="barbell-outline" size={40} color={palette.textTertiary} />
+            <Text style={[s.emptyText, { color: palette.textSecondary }]}>No workouts yet</Text>
+            <Text style={[s.emptySub, { color: palette.textTertiary }]}>Complete a workout to see it here</Text>
           </View>
         ) : (
           grouped.map(([dateStr, workouts]) => {
@@ -107,7 +100,7 @@ export default function WorkoutLogScreen({ navigation }) {
 
             return (
               <View key={dateStr}>
-                <Text style={s.dateHeader}>{label}</Text>
+                <Text style={[s.dateHeader, { color: palette.textSecondary }]}>{label}</Text>
                 {workouts.map((w, i) => (
                   <WorkoutEntry key={w.id || i} workout={w} />
                 ))}
@@ -115,7 +108,6 @@ export default function WorkoutLogScreen({ navigation }) {
             );
           })
         )}
-        </FadeIn>
 
       </ScrollView>
     </SafeAreaView>
@@ -123,17 +115,19 @@ export default function WorkoutLogScreen({ navigation }) {
 }
 
 function SummaryItem({ icon, value, label, color }) {
+  const { palette } = useTheme();
   return (
     <View style={s.summaryItem}>
       <Icon name={icon} size={16} color={color} />
       <Text style={[s.summaryVal, { color }]}>{value}</Text>
-      <Text style={s.summaryItemLbl}>{label}</Text>
+      <Text style={[s.summaryItemLbl, { color: palette.textTertiary }]}>{label}</Text>
     </View>
   );
 }
 
 function WorkoutEntry({ workout: w }) {
   const [expanded, setExpanded] = useState(false);
+  const { palette, accent } = useTheme();
   const dateObj = w.completedAt?.toDate?.() || new Date(w.date || Date.now());
   const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const workoutIcon = WORKOUTS[w.type]?.icon || 'barbell-outline';
@@ -148,162 +142,154 @@ function WorkoutEntry({ workout: w }) {
     : (WORKOUTS[w.type]?.byDuration?.[w.duration] || []);
 
   return (
-    <TouchableOpacity style={s.entryCard} onPress={() => setExpanded(e => !e)} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[s.entryCard, { backgroundColor: palette.bg1, borderColor: palette.border }]}
+      onPress={() => setExpanded(e => !e)}
+      activeOpacity={0.7}
+    >
       {/* Top row */}
       <View style={s.entryTop}>
-        <View style={s.entryIconWrap}>
-          <Icon name={workoutIcon} size={22} color={C.accent} />
+        <View style={[s.entryIconWrap, { backgroundColor: accent.primaryBg }]}>
+          <Icon name={workoutIcon} size={22} color={accent.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.entryType}>{w.type || 'Workout'}</Text>
-          <Text style={s.entryTime}>{timeStr}{w.duration ? ` · ${w.duration}` : ''}</Text>
+          <Text style={[s.entryType, { color: palette.textPrimary }]}>{w.type || 'Workout'}</Text>
+          <Text style={[s.entryTime, { color: palette.textTertiary }]}>{timeStr}{w.duration ? ` · ${w.duration}` : ''}</Text>
         </View>
         {isPartial && (
-          <View style={s.partialBadge}>
-            <Text style={s.partialText}>{pctDone}%</Text>
+          <View style={[s.partialBadge, { backgroundColor: accent.carbs + '20', borderColor: accent.carbs + '30' }]}>
+            <Text style={[s.partialText, { color: accent.carbs }]}>{pctDone}%</Text>
           </View>
         )}
-        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={C.textTertiary} />
+        <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={palette.textTertiary} />
       </View>
 
       {/* Stats grid */}
-      <View style={s.entryStats}>
+      <View style={[s.entryStats, { backgroundColor: palette.bg2, borderColor: palette.border }]}>
         <View style={s.entryStat}>
-          <Icon name="flame-outline" size={14} color={C.fat} />
-          <Text style={s.entryStatVal}>{w.calBurn || 0}</Text>
-          <Text style={s.entryStatLbl}>cal</Text>
+          <Icon name="flame-outline" size={14} color={accent.energy} />
+          <Text style={[s.entryStatVal, { color: palette.textPrimary }]}>{w.calBurn || 0}</Text>
+          <Text style={[s.entryStatLbl, { color: palette.textTertiary }]}>cal</Text>
         </View>
         {elapsed && (
           <View style={s.entryStat}>
-            <Icon name="time-outline" size={14} color={C.blue} />
-            <Text style={s.entryStatVal}>{elapsed}</Text>
-            <Text style={s.entryStatLbl}>time</Text>
+            <Icon name="time-outline" size={14} color={accent.blue} />
+            <Text style={[s.entryStatVal, { color: palette.textPrimary }]}>{elapsed}</Text>
+            <Text style={[s.entryStatLbl, { color: palette.textTertiary }]}>time</Text>
           </View>
         )}
         {w.exerciseCount != null && (
           <View style={s.entryStat}>
-            <Icon name="list-outline" size={14} color={C.accent} />
-            <Text style={s.entryStatVal}>{w.exerciseCount}</Text>
-            <Text style={s.entryStatLbl}>exercises</Text>
+            <Icon name="list-outline" size={14} color={accent.primary} />
+            <Text style={[s.entryStatVal, { color: palette.textPrimary }]}>{w.exerciseCount}</Text>
+            <Text style={[s.entryStatLbl, { color: palette.textTertiary }]}>exercises</Text>
           </View>
         )}
         {w.totalSets != null && (
           <View style={s.entryStat}>
-            <Icon name="checkmark-done-outline" size={14} color={C.protein} />
-            <Text style={s.entryStatVal}>{w.setsCompleted || 0}/{w.totalSets}</Text>
-            <Text style={s.entryStatLbl}>sets</Text>
+            <Icon name="checkmark-done-outline" size={14} color={accent.protein} />
+            <Text style={[s.entryStatVal, { color: palette.textPrimary }]}>{w.setsCompleted || 0}/{w.totalSets}</Text>
+            <Text style={[s.entryStatLbl, { color: palette.textTertiary }]}>sets</Text>
           </View>
         )}
       </View>
 
       {/* Expanded exercise detail */}
       {expanded && exerciseList.length > 0 && (
-        <View style={s.exList}>
-          <Text style={s.exListTitle}>Exercises</Text>
+        <View style={[s.exList, { borderTopColor: palette.border }]}>
+          <Text style={[s.exListTitle, { color: palette.textTertiary }]}>Exercises</Text>
           {exerciseList.map((ex, i) => (
-            <View key={i} style={s.exRow}>
-              <View style={s.exNum}>
-                <Text style={s.exNumText}>{i + 1}</Text>
+            <View key={i} style={[s.exRow, { backgroundColor: palette.bg2, borderColor: palette.border }]}>
+              <View style={[s.exNum, { backgroundColor: palette.bg3, borderColor: palette.borderHi }]}>
+                <Text style={[s.exNumText, { color: palette.textTertiary }]}>{i + 1}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.exName}>{ex.name}</Text>
-                <Text style={s.exMuscle}>{ex.muscle}</Text>
+                <Text style={[s.exName, { color: palette.textPrimary }]}>{ex.name}</Text>
+                <Text style={[s.exMuscle, { color: palette.textTertiary }]}>{ex.muscle}</Text>
               </View>
-              <Text style={s.exSets}>{ex.sets} × {ex.reps}</Text>
+              <Text style={[s.exSets, { color: accent.primary }]}>{ex.sets} × {ex.reps}</Text>
             </View>
           ))}
         </View>
       )}
       {expanded && exerciseList.length === 0 && (
-        <Text style={s.noExText}>Exercise details not available for this workout</Text>
+        <Text style={[s.noExText, { color: palette.textTertiary }]}>Exercise details not available for this workout</Text>
       )}
     </TouchableOpacity>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
+  safe: { flex: 1 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
 
   // Weekly summary
   summaryCard: { marginBottom: SPACING.lg },
-  summaryLabel: { fontSize: 13, fontWeight: '700', color: C.textSecondary, marginBottom: SPACING.sm },
+  summaryLabel: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.sm },
   summaryRow: { flexDirection: 'row' },
   summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
   summaryVal: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  summaryItemLbl: { fontSize: 9, fontWeight: '600', color: C.textTertiary },
+  summaryItemLbl: { fontSize: 9, fontWeight: '600' },
 
   // Date headers
-  dateHeader: { fontSize: 13, fontWeight: '700', color: C.textSecondary, marginBottom: SPACING.sm, marginTop: SPACING.xs },
+  dateHeader: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.sm, marginTop: SPACING.xs },
 
   // Workout entry card
   entryCard: {
-    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
-    padding: SPACING.md, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.md, borderWidth: 1,
     marginBottom: 10, gap: 12,
   },
   entryTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   entryIconWrap: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: C.accentBg, alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  entryType: { fontSize: 16, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.3 },
-  entryTime: { fontSize: 12, color: C.textTertiary, marginTop: 2 },
+  entryType: { fontSize: 16, fontWeight: '800', letterSpacing: -0.3 },
+  entryTime: { fontSize: 12, marginTop: 2 },
   partialBadge: {
-    backgroundColor: C.carbs + '20', borderRadius: RADIUS.full,
+    borderRadius: RADIUS.full,
     paddingHorizontal: 8, paddingVertical: 3,
-    borderWidth: 1, borderColor: C.carbs + '30',
+    borderWidth: 1,
   },
-  partialText: { fontSize: 11, fontWeight: '700', color: C.carbs },
+  partialText: { fontSize: 11, fontWeight: '700' },
 
   // Stats
   entryStats: {
     flexDirection: 'row',
-    backgroundColor: C.surface2, borderRadius: RADIUS.md,
-    padding: 10, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.md,
+    padding: 10, borderWidth: 1,
   },
   entryStat: { flex: 1, alignItems: 'center', gap: 3 },
-  entryStatVal: { fontSize: 15, fontWeight: '800', color: C.textPrimary },
-  entryStatLbl: { fontSize: 9, fontWeight: '600', color: C.textTertiary },
+  entryStatVal: { fontSize: 15, fontWeight: '800' },
+  entryStatLbl: { fontSize: 9, fontWeight: '600' },
 
   // Exercise detail list
   exList: {
-    borderTopWidth: 1, borderTopColor: C.border,
+    borderTopWidth: 1,
     paddingTop: 12, gap: 8,
   },
-  exListTitle: { fontSize: 11, fontWeight: '700', color: C.textTertiary, letterSpacing: 0.5, marginBottom: 4 },
+  exListTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 },
   exRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: C.surface2, borderRadius: RADIUS.md,
-    padding: 10, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.md,
+    padding: 10, borderWidth: 1,
   },
   exNum: {
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: C.surface3, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: C.borderHi,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
   },
-  exNumText: { fontSize: 10, fontWeight: '800', color: C.textTertiary },
-  exName: { fontSize: 13, fontWeight: '700', color: C.textPrimary },
-  exMuscle: { fontSize: 10, color: C.textTertiary, marginTop: 1 },
-  exSets: { fontSize: 13, fontWeight: '800', color: C.accent },
-  noExText: { fontSize: 12, color: C.textTertiary, textAlign: 'center', paddingVertical: 8 },
+  exNumText: { fontSize: 10, fontWeight: '800' },
+  exName: { fontSize: 13, fontWeight: '700' },
+  exMuscle: { fontSize: 10, marginTop: 1 },
+  exSets: { fontSize: 13, fontWeight: '800' },
+  noExText: { fontSize: 12, textAlign: 'center', paddingVertical: 8 },
 
   // Empty
   emptyState: { alignItems: 'center', paddingVertical: SPACING.xxl, gap: 8 },
-  emptyText: { fontSize: 16, fontWeight: '700', color: C.textSecondary },
-  emptySub: { fontSize: 13, color: C.textTertiary },
+  emptyText: { fontSize: 16, fontWeight: '700' },
+  emptySub: { fontSize: 13 },
 });
