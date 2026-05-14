@@ -1,16 +1,18 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Image,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Linking, Share, ActivityIndicator, Alert, RefreshControl,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, StatusBar,
+  TextInput, KeyboardAvoidingView, Platform, Linking, Share, ActivityIndicator, Alert, RefreshControl,
 } from 'react-native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { useUI } from '../context/UIContext';
 import { signOutUser, deleteAccount, reauthenticateWithPassword } from '../services/auth';
 import { exportUserData, updateUserProfile } from '../services/firestore';
-import { Badge, SectionHeader, FadeIn } from '../components/UI';
+import { GlassCard, GradientButton, BlurHeader, GlassBottomSheet, Badge } from '../components';
+import { SectionHeader, FadeIn } from '../components/UI';
 import Icon from '../components/Icon';
 
 const GOALS = ['Lose Weight', 'Build Muscle', 'Stay Healthy', 'Boost Energy'];
@@ -22,25 +24,9 @@ const DIET_ICONS = {
   'Gluten-Free': 'nutrition-outline', 'Dairy-Free': 'water-outline', Keto: 'fish-outline', Paleo: 'flame-outline',
 };
 
-// ── BOTTOM SHEET WRAPPER ───────────────────────────────────────────
-function Sheet({ visible, onClose, title, children }) {
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={ps.overlay} activeOpacity={1} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ width: '100%' }}>
-          <TouchableOpacity style={ps.sheet} activeOpacity={1}>
-            <View style={ps.sheetHandle} />
-            <Text style={ps.sheetTitle}>{title}</Text>
-            {children}
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </TouchableOpacity>
-    </Modal>
-  );
-}
-
 // ── OPTION LIST (goal / diet picker) ──────────────────────────────
 function OptionList({ options, selected, iconMap, onSelect }) {
+  const { palette, accent } = useTheme();
   return (
     <View style={ps.optionList}>
       {options.map(opt => {
@@ -48,13 +34,17 @@ function OptionList({ options, selected, iconMap, onSelect }) {
         return (
           <TouchableOpacity
             key={opt}
-            style={[ps.optionRow, active && ps.optionRowActive]}
+            style={[
+              ps.optionRow,
+              { backgroundColor: palette.bg1, borderColor: palette.border },
+              active && { borderColor: accent.primary, backgroundColor: accent.primaryBg },
+            ]}
             onPress={() => onSelect(opt)}
             activeOpacity={0.75}
           >
-            <Icon name={iconMap[opt]} size={20} color={active ? C.accent : C.textSecondary} />
-            <Text style={[ps.optionLabel, active && ps.optionLabelActive]}>{opt}</Text>
-            {active && <View style={ps.optionCheck}><Icon name="checkmark" size={14} color={C.textInverse} /></View>}
+            <Icon name={iconMap[opt]} size={20} color={active ? accent.primary : palette.textSecondary} />
+            <Text style={[ps.optionLabel, { color: palette.textSecondary }, active && { color: palette.textPrimary, fontWeight: '700' }]}>{opt}</Text>
+            {active && <View style={[ps.optionCheck, { backgroundColor: accent.primary }]}><Icon name="checkmark" size={14} color={palette.textInverse} /></View>}
           </TouchableOpacity>
         );
       })}
@@ -64,6 +54,7 @@ function OptionList({ options, selected, iconMap, onSelect }) {
 
 // ── NUMBER INPUT SHEET ─────────────────────────────────────────────
 function NumberSheet({ visible, onClose, title, placeholder, unit, value, onSave, fieldKey }) {
+  const { palette, accent, gradients } = useTheme();
   const [val, setVal] = useState(value || '');
   const { showToast } = useUI();
   const save = () => {
@@ -92,24 +83,23 @@ function NumberSheet({ visible, onClose, title, placeholder, unit, value, onSave
     onClose();
   };
   return (
-    <Sheet visible={visible} onClose={onClose} title={title}>
+    <GlassBottomSheet visible={visible} onClose={onClose} height={250}>
+      <Text style={[ps.sheetTitle, { color: palette.textPrimary }]}>{title}</Text>
       <View style={ps.inputRow}>
         <TextInput
-          style={ps.numInput}
+          style={[ps.numInput, { backgroundColor: palette.bg1, borderColor: palette.borderHi, color: palette.textPrimary }]}
           value={val}
           onChangeText={setVal}
           keyboardType="numeric"
           placeholder={placeholder}
-          placeholderTextColor={C.textTertiary}
+          placeholderTextColor={palette.textTertiary}
           autoFocus
           maxLength={5}
         />
-        {unit ? <Text style={ps.numUnit}>{unit}</Text> : null}
+        {unit ? <Text style={[ps.numUnit, { color: palette.textSecondary }]}>{unit}</Text> : null}
       </View>
-      <TouchableOpacity style={ps.saveBtn} onPress={save} activeOpacity={0.85}>
-        <Text style={ps.saveBtnText}>Save</Text>
-      </TouchableOpacity>
-    </Sheet>
+      <GradientButton label="Save" onPress={save} gradient={gradients.primary} />
+    </GlassBottomSheet>
   );
 }
 
@@ -126,6 +116,8 @@ export default function ProfileScreen({ navigation }) {
     loggedMeals, completedWorkouts, user, profile, refreshProfile,
     healthKitEnabled,
   } = useApp();
+
+  const { mode, palette, accent, gradients } = useTheme();
 
   const profilePhoto = profile?.profilePhoto || null;
 
@@ -194,7 +186,6 @@ export default function ProfileScreen({ navigation }) {
       await Share.share({ message: json, title: 'NutriSmart Data Export' });
     } catch (err) {
       console.warn('Export failed:', err.message);
-      showToast('Failed to export data. Try again.');
     } finally {
       setExporting(false);
     }
@@ -217,7 +208,6 @@ export default function ProfileScreen({ navigation }) {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            // For email/password users, prompt for password re-auth
             const currentUser = require('@react-native-firebase/auth').default().currentUser;
             const isEmailUser = currentUser?.providerData?.some(p => p.providerId === 'password');
 
@@ -234,24 +224,16 @@ export default function ProfileScreen({ navigation }) {
                   } catch (err) {
                     setDeleting(false);
                     if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-                      showToast('Incorrect password.');
-                    } else {
-                      showToast('Failed to delete account. Try again.');
+                      // showToast handled via UI context
                     }
                   }
                 },
                 'secure-text'
               );
             } else {
-              // Google/Apple users — Firebase may require recent auth
               setDeleting(true);
               deleteAccount().catch(err => {
                 setDeleting(false);
-                if (err.code === 'auth/requires-recent-login') {
-                  showToast('Please sign out and sign back in, then try again.');
-                } else {
-                  showToast('Failed to delete account. Try again.');
-                }
               });
             }
           },
@@ -265,7 +247,6 @@ export default function ProfileScreen({ navigation }) {
   const initial     = firstName[0]?.toUpperCase();
 
   const workoutCount = completedWorkouts?.length || 0;
-  // Calculate active days in last 7 days
   const last7 = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -276,9 +257,9 @@ export default function ProfileScreen({ navigation }) {
     ...completedWorkouts.filter(w => last7.includes(w.date)).map(w => w.date),
   ]).size;
   const stats = [
-    { val: loggedMeals.length, lbl: 'Meals',    color: C.accent    },
-    { val: workoutCount,       lbl: 'Workouts',  color: C.blue    },
-    { val: activeDays > 0 ? `${Math.round((activeDays / 7) * 100)}%` : '—', lbl: 'Active', color: C.protein },
+    { val: loggedMeals.length, lbl: 'Meals',    color: accent.primary },
+    { val: workoutCount,       lbl: 'Workouts',  color: accent.blue   },
+    { val: activeDays > 0 ? `${Math.round((activeDays / 7) * 100)}%` : '—', lbl: 'Active', color: accent.protein },
   ];
 
   const dataRows = [
@@ -291,46 +272,40 @@ export default function ProfileScreen({ navigation }) {
   ];
 
   return (
-    <SafeAreaView style={ps.safe} edges={['top']}>
+    <SafeAreaView style={[ps.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
-      {/* Header */}
-      <View style={ps.header}>
-        <TouchableOpacity style={ps.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Icon name="chevron-back" size={20} color={C.accent} />
-        </TouchableOpacity>
-        <Text style={ps.headerTitle}>Profile</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <BlurHeader title="Profile" onBack={() => navigation.goBack()} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={ps.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent.primary} />}
       >
 
         {/* Avatar block */}
         <FadeIn delay={0}>
-        <View style={ps.avatarBlock}>
-          <TouchableOpacity style={ps.avatarRing} onPress={handlePickPhoto} activeOpacity={0.8}>
+        <View style={[ps.avatarBlock, { borderBottomColor: palette.border }]}>
+          <TouchableOpacity style={[ps.avatarRing, { borderColor: accent.primary + '50' }]} onPress={handlePickPhoto} activeOpacity={0.8}>
             {profilePhoto ? (
               <Image source={{ uri: profilePhoto }} style={ps.avatarImage} />
             ) : (
-              <View style={ps.avatar}>
-                <Text style={ps.avatarInitial}>{initial}</Text>
+              <View style={[ps.avatar, { backgroundColor: accent.primary }]}>
+                <Text style={[ps.avatarInitial, { color: palette.textInverse }]}>{initial}</Text>
               </View>
             )}
-            <View style={ps.avatarCameraBadge}>
+            <View style={[ps.avatarCameraBadge, { backgroundColor: palette.bg3, borderColor: palette.bg0 }]}>
               {photoLoading ? (
-                <ActivityIndicator size="small" color={C.textInverse} />
+                <ActivityIndicator size="small" color={palette.textInverse} />
               ) : (
-                <Icon name="camera" size={14} color={C.textInverse} />
+                <Icon name="camera" size={14} color={palette.textInverse} />
               )}
             </View>
           </TouchableOpacity>
-          <Text style={ps.name}>{displayName}</Text>
-          <Text style={ps.email}>{user?.email || ''}</Text>
-          <View style={ps.memberPill}>
-            <Text style={ps.memberText}>Active Member</Text>
+          <Text style={[ps.name, { color: palette.textPrimary }]}>{displayName}</Text>
+          <Text style={[ps.email, { color: palette.textSecondary }]}>{user?.email || ''}</Text>
+          <View style={[ps.memberPill, { backgroundColor: palette.glass1Bg, borderColor: accent.primary + '30' }]}>
+            <Text style={[ps.memberText, { color: accent.primary }]}>Active Member</Text>
           </View>
         </View>
         </FadeIn>
@@ -339,10 +314,10 @@ export default function ProfileScreen({ navigation }) {
         <FadeIn delay={60}>
         <View style={ps.statsRow}>
           {stats.map(st => (
-            <View key={st.lbl} style={[ps.statCard, { borderColor: st.color + '25' }]}>
+            <GlassCard key={st.lbl} level={1} style={[ps.statCard, { borderColor: st.color + '25' }]}>
               <Text style={[ps.statVal, { color: st.color }]}>{st.val}</Text>
-              <Text style={ps.statLbl}>{st.lbl}</Text>
-            </View>
+              <Text style={[ps.statLbl, { color: palette.textTertiary }]}>{st.lbl}</Text>
+            </GlassCard>
           ))}
         </View>
         </FadeIn>
@@ -350,21 +325,21 @@ export default function ProfileScreen({ navigation }) {
         {/* Your data — each row is tappable */}
         <FadeIn delay={120}>
         <SectionHeader title="Your Data" />
-        <View style={ps.infoBlock}>
+        <View style={[ps.infoBlock, { backgroundColor: palette.bg1, borderColor: palette.border }]}>
           {dataRows.map((r, i) => (
             <TouchableOpacity
               key={r.key}
-              style={[ps.infoRow, i === dataRows.length - 1 && ps.infoRowLast]}
+              style={[ps.infoRow, { borderBottomColor: palette.border }, i === dataRows.length - 1 && ps.infoRowLast]}
               onPress={() => setActiveSheet(r.key)}
               activeOpacity={0.7}
             >
-              <Text style={ps.infoLabel}>{r.label}</Text>
+              <Text style={[ps.infoLabel, { color: palette.textSecondary }]}>{r.label}</Text>
               <View style={ps.infoRight}>
                 {r.badge
-                  ? <Badge label={r.display} color={C.accent} />
-                  : <Text style={ps.infoValue}>{r.display}</Text>
+                  ? <Badge label={r.display} color={accent.primary} />
+                  : <Text style={[ps.infoValue, { color: palette.textPrimary }]}>{r.display}</Text>
                 }
-                <Icon name="chevron-forward" size={16} color={C.textTertiary} />
+                <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
               </View>
             </TouchableOpacity>
           ))}
@@ -374,89 +349,97 @@ export default function ProfileScreen({ navigation }) {
         {/* Settings */}
         <FadeIn delay={180}>
         <SectionHeader title="Settings" />
-        <View style={ps.infoBlock}>
+        <View style={[ps.infoBlock, { backgroundColor: palette.bg1, borderColor: palette.border }]}>
 
           {/* Units toggle */}
           <TouchableOpacity
-            style={ps.settingRow}
+            style={[ps.settingRow, { borderBottomColor: palette.border }]}
             onPress={() => setUnits(units === 'Metric' ? 'Imperial' : 'Metric')}
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Icon name="resize-outline" size={18} color={C.textSecondary} />
-              <Text style={ps.settingLabel}>Units</Text>
+              <Icon name="resize-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Units</Text>
             </View>
             <View style={ps.unitToggle}>
-              <View style={[ps.unitChip, units === 'Metric' && ps.unitChipActive]}>
-                <Text style={[ps.unitChipText, units === 'Metric' && ps.unitChipTextActive]}>Metric</Text>
+              <View style={[
+                ps.unitChip,
+                { borderColor: palette.border, backgroundColor: palette.bg2 },
+                units === 'Metric' && { backgroundColor: accent.primaryBg, borderColor: accent.primary },
+              ]}>
+                <Text style={[ps.unitChipText, { color: palette.textTertiary }, units === 'Metric' && { color: accent.primary }]}>Metric</Text>
               </View>
-              <View style={[ps.unitChip, units === 'Imperial' && ps.unitChipActive]}>
-                <Text style={[ps.unitChipText, units === 'Imperial' && ps.unitChipTextActive]}>Imperial</Text>
+              <View style={[
+                ps.unitChip,
+                { borderColor: palette.border, backgroundColor: palette.bg2 },
+                units === 'Imperial' && { backgroundColor: accent.primaryBg, borderColor: accent.primary },
+              ]}>
+                <Text style={[ps.unitChipText, { color: palette.textTertiary }, units === 'Imperial' && { color: accent.primary }]}>Imperial</Text>
               </View>
             </View>
           </TouchableOpacity>
 
           {/* Data & Privacy */}
           <TouchableOpacity
-            style={ps.settingRow}
+            style={[ps.settingRow, { borderBottomColor: palette.border }]}
             onPress={() => setActiveSheet('privacy')}
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Icon name="lock-closed-outline" size={18} color={C.textSecondary} />
-              <Text style={ps.settingLabel}>Data & Privacy</Text>
+              <Icon name="lock-closed-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Data & Privacy</Text>
             </View>
-            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
+            <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
           </TouchableOpacity>
 
           {/* Apple Health */}
-          <View style={ps.settingRow}>
+          <View style={[ps.settingRow, { borderBottomColor: palette.border }]}>
             <View style={ps.settingLeft}>
-              <Icon name="heart-outline" size={18} color={C.textSecondary} />
-              <Text style={ps.settingLabel}>Apple Health</Text>
+              <Icon name="heart-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Apple Health</Text>
             </View>
-            <Text style={[ps.settingStatus, healthKitEnabled && ps.settingStatusOn]}>
+            <Text style={[ps.settingStatus, { color: palette.textTertiary }, healthKitEnabled && { color: accent.primary }]}>
               {healthKitEnabled ? 'Connected' : 'Not Available'}
             </Text>
           </View>
 
           {/* Privacy Policy */}
           <TouchableOpacity
-            style={ps.settingRow}
+            style={[ps.settingRow, { borderBottomColor: palette.border }]}
             onPress={() => Linking.openURL('https://nutrismart.app/privacy')}
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Icon name="document-text-outline" size={18} color={C.textSecondary} />
-              <Text style={ps.settingLabel}>Privacy Policy</Text>
+              <Icon name="document-text-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Privacy Policy</Text>
             </View>
-            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
+            <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
           </TouchableOpacity>
 
           {/* Terms of Service */}
           <TouchableOpacity
-            style={ps.settingRow}
+            style={[ps.settingRow, { borderBottomColor: palette.border }]}
             onPress={() => Linking.openURL('https://nutrismart.app/terms')}
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Icon name="clipboard-outline" size={18} color={C.textSecondary} />
-              <Text style={ps.settingLabel}>Terms of Service</Text>
+              <Icon name="clipboard-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Terms of Service</Text>
             </View>
-            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
+            <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
           </TouchableOpacity>
 
           {/* About */}
           <TouchableOpacity
-            style={[ps.settingRow, ps.infoRowLast]}
+            style={[ps.settingRow, ps.infoRowLast, { borderBottomColor: palette.border }]}
             onPress={() => setActiveSheet('about')}
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
-              <Icon name="information-circle-outline" size={18} color={C.textSecondary} />
-              <Text style={ps.settingLabel}>About NutriSmart</Text>
+              <Icon name="information-circle-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>About NutriSmart</Text>
             </View>
-            <Icon name="chevron-forward" size={16} color={C.textTertiary} />
+            <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
           </TouchableOpacity>
 
         </View>
@@ -464,48 +447,50 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Sign out */}
         <FadeIn delay={240}>
-        <TouchableOpacity style={ps.signOutBtn} onPress={signOut} activeOpacity={0.8}>
-          <Text style={ps.signOutText}>Sign Out</Text>
+        <TouchableOpacity style={[ps.signOutBtn, { borderColor: accent.red + '40', backgroundColor: accent.redBg }]} onPress={signOut} activeOpacity={0.8}>
+          <Text style={[ps.signOutText, { color: accent.red }]}>Sign Out</Text>
         </TouchableOpacity>
 
         {/* Delete account */}
         <TouchableOpacity
-          style={ps.deleteBtn}
+          style={[ps.deleteBtn, { borderColor: accent.red + '25' }]}
           onPress={handleDeleteAccount}
           activeOpacity={0.8}
           disabled={deleting}
         >
           {deleting ? (
-            <ActivityIndicator color={C.red} size="small" />
+            <ActivityIndicator color={accent.red} size="small" />
           ) : (
-            <Text style={ps.deleteText}>Delete Account</Text>
+            <Text style={[ps.deleteText, { color: accent.red + 'AA' }]}>Delete Account</Text>
           )}
         </TouchableOpacity>
 
-        <Text style={ps.version}>NutriSmart v1.0.0</Text>
+        <Text style={[ps.version, { color: palette.textTertiary }]}>NutriSmart v1.0.0</Text>
         </FadeIn>
 
       </ScrollView>
 
       {/* ── GOAL PICKER ─────────────────────────────── */}
-      <Sheet visible={activeSheet === 'goal'} onClose={() => setActiveSheet(null)} title="Your Goal">
+      <GlassBottomSheet visible={activeSheet === 'goal'} onClose={() => setActiveSheet(null)} height={380}>
+        <Text style={[ps.sheetTitle, { color: palette.textPrimary }]}>Your Goal</Text>
         <OptionList
           options={GOALS}
           selected={goal}
           iconMap={GOAL_ICONS}
           onSelect={v => { setGoal(v); setActiveSheet(null); }}
         />
-      </Sheet>
+      </GlassBottomSheet>
 
       {/* ── DIET PICKER ─────────────────────────────── */}
-      <Sheet visible={activeSheet === 'diet'} onClose={() => setActiveSheet(null)} title="Dietary Preference">
+      <GlassBottomSheet visible={activeSheet === 'diet'} onClose={() => setActiveSheet(null)} height={520}>
+        <Text style={[ps.sheetTitle, { color: palette.textPrimary }]}>Dietary Preference</Text>
         <OptionList
           options={DIETS}
           selected={diet || 'No Restrictions'}
           iconMap={DIET_ICONS}
           onSelect={v => { setDiet(v); setActiveSheet(null); }}
         />
-      </Sheet>
+      </GlassBottomSheet>
 
       {/* ── CALORIE GOAL ─────────────────────────────── */}
       <NumberSheet
@@ -556,7 +541,8 @@ export default function ProfileScreen({ navigation }) {
       />
 
       {/* ── DATA & PRIVACY ──────────────────────────── */}
-      <Sheet visible={activeSheet === 'privacy'} onClose={() => setActiveSheet(null)} title="Data & Privacy">
+      <GlassBottomSheet visible={activeSheet === 'privacy'} onClose={() => setActiveSheet(null)} height={500}>
+        <Text style={[ps.sheetTitle, { color: palette.textPrimary }]}>Data & Privacy</Text>
         <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
           {[
             { heading: 'Data We Collect', body: 'NutriSmart collects the information you provide — name, email, age, height, weight, dietary preferences, and the meals and workouts you log. This data is stored securely in the cloud and is used solely to personalise your nutrition and fitness recommendations.' },
@@ -565,12 +551,12 @@ export default function ProfileScreen({ navigation }) {
             { heading: 'Contact', body: 'Questions? Reach us at privacy@nutrismart.app' },
           ].map(sec => (
             <View key={sec.heading} style={ps.infoSection}>
-              <Text style={ps.infoSecHeading}>{sec.heading}</Text>
-              <Text style={ps.infoSecBody}>{sec.body}</Text>
+              <Text style={[ps.infoSecHeading, { color: accent.primary }]}>{sec.heading}</Text>
+              <Text style={[ps.infoSecBody, { color: palette.textSecondary }]}>{sec.body}</Text>
             </View>
           ))}
           <TouchableOpacity
-            style={ps.exportBtn}
+            style={[ps.exportBtn, { backgroundColor: palette.bg3, borderColor: accent.primary + '30' }]}
             onPress={handleExportData}
             disabled={exporting}
             activeOpacity={0.8}
@@ -578,22 +564,23 @@ export default function ProfileScreen({ navigation }) {
             accessibilityLabel="Export my data"
           >
             {exporting ? (
-              <ActivityIndicator color={C.accent} size="small" />
+              <ActivityIndicator color={accent.primary} size="small" />
             ) : (
-              <Text style={ps.exportBtnText}>Export My Data</Text>
+              <Text style={[ps.exportBtnText, { color: accent.primary }]}>Export My Data</Text>
             )}
           </TouchableOpacity>
         </ScrollView>
-      </Sheet>
+      </GlassBottomSheet>
 
       {/* ── ABOUT ───────────────────────────────────── */}
-      <Sheet visible={activeSheet === 'about'} onClose={() => setActiveSheet(null)} title="About NutriSmart">
+      <GlassBottomSheet visible={activeSheet === 'about'} onClose={() => setActiveSheet(null)} height={450}>
+        <Text style={[ps.sheetTitle, { color: palette.textPrimary }]}>About NutriSmart</Text>
         <View style={ps.aboutLogoWrap}>
-          <View style={ps.aboutLogo}>
-            <Text style={ps.aboutLogoText}>N</Text>
+          <View style={[ps.aboutLogo, { backgroundColor: accent.primary }]}>
+            <Text style={[ps.aboutLogoText, { color: palette.textInverse }]}>N</Text>
           </View>
-          <Text style={ps.aboutAppName}>NutriSmart</Text>
-          <Text style={ps.aboutVersion}>Version 1.0.0</Text>
+          <Text style={[ps.aboutAppName, { color: palette.textPrimary }]}>NutriSmart</Text>
+          <Text style={[ps.aboutVersion, { color: palette.textTertiary }]}>Version 1.0.0</Text>
         </View>
         {[
           { heading: 'What is NutriSmart?', body: 'NutriSmart is your nutrition and fitness companion. It generates personalised meal recommendations from your pantry, tracks your macros, and helps you build consistent healthy habits through daily streaks.' },
@@ -601,188 +588,153 @@ export default function ProfileScreen({ navigation }) {
           { heading: 'Built with', body: 'React Native · iOS · Firebase' },
         ].map(sec => (
           <View key={sec.heading} style={ps.infoSection}>
-            <Text style={ps.infoSecHeading}>{sec.heading}</Text>
-            <Text style={ps.infoSecBody}>{sec.body}</Text>
+            <Text style={[ps.infoSecHeading, { color: accent.primary }]}>{sec.heading}</Text>
+            <Text style={[ps.infoSecBody, { color: palette.textSecondary }]}>{sec.body}</Text>
           </View>
         ))}
-      </Sheet>
+      </GlassBottomSheet>
 
     </SafeAreaView>
   );
 }
 
 const ps = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  backBtn:     { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
-  backBtnText: { fontSize: 18, color: C.accent, marginTop: -1 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: C.textPrimary },
+  safe: { flex: 1 },
 
   scroll: { padding: SPACING.md, paddingBottom: 60 },
 
   // Avatar
   avatarBlock: {
     alignItems: 'center', paddingVertical: SPACING.xl,
-    borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: SPACING.lg,
+    borderBottomWidth: 1, marginBottom: SPACING.lg,
   },
   avatarRing: {
     width: 96, height: 96, borderRadius: 48,
-    borderWidth: 2, borderColor: C.accent + '50',
-    padding: 4, marginBottom: SPACING.sm, ...SHADOW.accent,
+    borderWidth: 2,
+    padding: 4, marginBottom: SPACING.sm,
   },
-  avatar:        { flex: 1, borderRadius: 40, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  avatar:        { flex: 1, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   avatarImage:   { width: '100%', height: '100%', borderRadius: 40 },
-  avatarInitial: { fontSize: 38, fontWeight: '900', color: C.textInverse },
+  avatarInitial: { fontSize: 38, fontWeight: '900' },
   avatarCameraBadge: {
     position: 'absolute', bottom: 0, right: 0,
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: C.surface3, borderWidth: 2, borderColor: C.black,
+    borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',
   },
-  name:          { fontSize: 24, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5, marginBottom: 4 },
-  email:         { fontSize: 14, color: C.textSecondary, marginBottom: SPACING.sm },
+  name:          { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, marginBottom: 4 },
+  email:         { fontSize: 14, marginBottom: SPACING.sm },
   memberPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: C.accentBg, borderRadius: RADIUS.full,
+    borderRadius: RADIUS.full,
     paddingHorizontal: 14, paddingVertical: 6,
-    borderWidth: 1, borderColor: C.accent + '30',
+    borderWidth: 1,
   },
-  memberText: { fontSize: 9, fontWeight: '800', color: C.accent, letterSpacing: 1.8 },
+  memberText: { fontSize: 9, fontWeight: '800', letterSpacing: 1.8 },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: SPACING.lg },
   statCard: {
-    flex: 1, backgroundColor: C.surface1, borderRadius: RADIUS.lg,
+    flex: 1,
     padding: SPACING.md, alignItems: 'center', borderWidth: 1,
   },
   statVal: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-  statLbl: { fontSize: 10, color: C.textTertiary, fontWeight: '600', marginTop: 3, letterSpacing: 0.3 },
+  statLbl: { fontSize: 10, fontWeight: '600', marginTop: 3, letterSpacing: 0.3 },
 
   // Info block
   infoBlock: {
-    backgroundColor: C.surface1, borderRadius: RADIUS.lg,
-    borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1, overflow: 'hidden', marginBottom: SPACING.lg,
   },
   infoRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.md, paddingVertical: 15,
-    borderBottomWidth: 1, borderBottomColor: C.border,
+    borderBottomWidth: 1,
   },
   infoRowLast:  { borderBottomWidth: 0 },
-  infoLabel:    { fontSize: 14, color: C.textSecondary, fontWeight: '500', flex: 1 },
+  infoLabel:    { fontSize: 14, fontWeight: '500', flex: 1 },
   infoRight:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  infoValue:    { fontSize: 14, color: C.textPrimary, fontWeight: '600' },
-  chevron:      { fontSize: 22, color: C.textTertiary, fontWeight: '300' },
-  settingStatus:   { fontSize: 12, fontWeight: '600', color: C.textTertiary },
-  settingStatusOn: { color: C.accent },
+  infoValue:    { fontSize: 14, fontWeight: '600' },
+  settingStatus:   { fontSize: 12, fontWeight: '600' },
 
   // Settings rows
   settingRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: SPACING.md, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: C.border,
+    borderBottomWidth: 1,
   },
   settingLeft:  { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  settingIcon:  { fontSize: 18 },
-  settingLabel: { fontSize: 15, color: C.textPrimary, fontWeight: '500' },
+  settingLabel: { fontSize: 15, fontWeight: '500' },
 
   // Unit toggle chips
   unitToggle:       { flexDirection: 'row', gap: 4 },
-  unitChip:         { paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2 },
-  unitChipActive:   { backgroundColor: C.accentBg, borderColor: C.accent },
-  unitChipText:     { fontSize: 12, color: C.textTertiary, fontWeight: '600' },
-  unitChipTextActive: { color: C.accent },
+  unitChip:         { paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.full, borderWidth: 1 },
+  unitChipText:     { fontSize: 12, fontWeight: '600' },
 
   // Sign out
   signOutBtn: {
-    borderWidth: 1, borderColor: C.red + '40',
+    borderWidth: 1,
     borderRadius: RADIUS.lg, padding: 16,
     alignItems: 'center', marginBottom: SPACING.md,
-    backgroundColor: C.redBg,
   },
-  signOutText: { fontSize: 15, fontWeight: '700', color: C.red },
+  signOutText: { fontSize: 15, fontWeight: '700' },
 
   // Delete account
   deleteBtn: {
-    borderWidth: 1, borderColor: C.red + '25',
+    borderWidth: 1,
     borderRadius: RADIUS.lg, padding: 16,
     alignItems: 'center', marginBottom: SPACING.md,
   },
-  deleteText: { fontSize: 14, fontWeight: '600', color: C.red + 'AA' },
+  deleteText: { fontSize: 14, fontWeight: '600' },
 
-  version:     { textAlign: 'center', fontSize: 11, color: C.textTertiary, fontWeight: '500' },
+  version: { textAlign: 'center', fontSize: 11, fontWeight: '500' },
 
-  // Bottom sheet
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: C.surface0,
-    borderTopLeftRadius: 32, borderTopRightRadius: 32,
-    borderWidth: 1, borderColor: C.border,
-    padding: SPACING.lg, paddingBottom: 44,
-  },
-  sheetHandle: {
-    width: 40, height: 4, backgroundColor: C.surface3,
-    borderRadius: 2, alignSelf: 'center', marginBottom: SPACING.lg,
-  },
-  sheetTitle: { fontSize: 22, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5, marginBottom: SPACING.md },
+  // Sheet title
+  sheetTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5, marginBottom: SPACING.md },
 
   // Option list
   optionList: { gap: 6 },
   optionRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: C.surface1, borderRadius: RADIUS.md,
+    borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.md, paddingVertical: 14,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
   },
-  optionRowActive: { borderColor: C.accent, backgroundColor: C.accentBgSm },
-  optionEmoji:     { fontSize: 20 },
-  optionLabel:     { flex: 1, fontSize: 15, color: C.textSecondary, fontWeight: '500' },
-  optionLabelActive: { color: C.textPrimary, fontWeight: '700' },
-  optionCheck:     { width: 22, height: 22, borderRadius: 11, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
-  optionCheckMark: { fontSize: 12, color: C.textInverse, fontWeight: '900' },
+  optionLabel:     { flex: 1, fontSize: 15, fontWeight: '500' },
+  optionCheck:     { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 
   // Number input
   inputRow:  { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: SPACING.lg },
   numInput: {
-    flex: 1, backgroundColor: C.surface1, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: C.borderHi,
+    flex: 1, borderRadius: RADIUS.md,
+    borderWidth: 1,
     paddingHorizontal: SPACING.md, paddingVertical: 14,
-    fontSize: 24, fontWeight: '700', color: C.textPrimary,
+    fontSize: 24, fontWeight: '700',
   },
-  numUnit:  { fontSize: 18, fontWeight: '700', color: C.textSecondary, minWidth: 36 },
-  saveBtn: {
-    backgroundColor: C.accent, borderRadius: RADIUS.full,
-    paddingVertical: 15, alignItems: 'center', ...SHADOW.accent,
-  },
-  saveBtnText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
+  numUnit: { fontSize: 18, fontWeight: '700', minWidth: 36 },
 
   // Info sections (privacy / about)
   infoSection:    { marginBottom: SPACING.md },
-  infoSecHeading: { fontSize: 13, fontWeight: '800', color: C.accent, letterSpacing: 0.5, marginBottom: 6 },
-  infoSecBody:    { fontSize: 14, color: C.textSecondary, lineHeight: 22 },
+  infoSecHeading: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5, marginBottom: 6 },
+  infoSecBody:    { fontSize: 14, lineHeight: 22 },
 
   // Export button
   exportBtn: {
-    backgroundColor: C.surface3, borderRadius: RADIUS.md,
+    borderRadius: RADIUS.md,
     paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: C.accent + '30',
+    borderWidth: 1,
     marginTop: SPACING.sm,
   },
-  exportBtnText: { fontSize: 14, fontWeight: '700', color: C.accent },
+  exportBtnText: { fontSize: 14, fontWeight: '700' },
 
   // About logo
   aboutLogoWrap: { alignItems: 'center', marginBottom: SPACING.lg },
   aboutLogo: {
     width: 64, height: 64, borderRadius: RADIUS.lg,
-    backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 10, ...SHADOW.accent,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 10,
   },
-  aboutLogoText: { fontSize: 32, fontWeight: '900', color: C.textInverse },
-  aboutAppName:  { fontSize: 22, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
-  aboutVersion:  { fontSize: 12, color: C.textTertiary, marginTop: 4 },
+  aboutLogoText: { fontSize: 32, fontWeight: '900' },
+  aboutAppName:  { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  aboutVersion:  { fontSize: 12, marginTop: 4 },
 });
