@@ -4,13 +4,16 @@ import {
   ScrollView, StatusBar, Alert, Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
+import { GlassCard, GradientButton } from '../components';
 import Icon from '../components/Icon';
 import { hapticSuccess, hapticMedium, hapticSelection } from '../utils/haptics';
 
 // ── REST TIMER ────────────────────────────────────────────────────
 function RestTimer({ seconds, onDone, onSkip }) {
+  const { palette, accent } = useTheme();
   const [remaining, setRemaining] = useState(seconds);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const barAnim = useRef(new Animated.Value(1)).current;
@@ -58,7 +61,6 @@ function RestTimer({ seconds, onDone, onSkip }) {
   const handleExtend = useCallback(() => {
     setRemaining(prev => prev + 15);
     totalRef.current += 15;
-    // Restart bar from current position with new remaining time
     barAnimRef.current?.stop();
     barAnimRef.current = Animated.timing(barAnim, {
       toValue: 0,
@@ -74,25 +76,25 @@ function RestTimer({ seconds, onDone, onSkip }) {
   });
 
   return (
-    <View style={s.restOverlay}>
+    <View style={[s.restOverlay, { backgroundColor: palette.overlay || (palette.bg0 + 'E6') }]}>
       <View style={s.restCard}>
-        <Text style={s.restLabel}>Rest</Text>
-        <Animated.Text style={[s.restTime, { transform: [{ scale: pulseAnim }] }]}>
+        <Text style={[s.restLabel, { color: palette.textTertiary }]}>Rest</Text>
+        <Animated.Text style={[s.restTime, { color: accent.primary, transform: [{ scale: pulseAnim }] }]}>
           {remaining}
         </Animated.Text>
-        <Text style={s.restSec}>seconds</Text>
+        <Text style={[s.restSec, { color: palette.textTertiary }]}>seconds</Text>
 
         {/* Progress bar — smooth */}
-        <View style={s.restBarBg}>
-          <Animated.View style={[s.restBarFill, { width: barWidth }]} />
+        <View style={[s.restBarBg, { backgroundColor: palette.bg3 }]}>
+          <Animated.View style={[s.restBarFill, { width: barWidth, backgroundColor: accent.primary }]} />
         </View>
 
         <View style={s.restBtns}>
-          <TouchableOpacity style={s.restSkipBtn} onPress={onSkip} activeOpacity={0.7}>
-            <Text style={s.restSkipText}>Skip</Text>
+          <TouchableOpacity style={[s.restSkipBtn, { borderColor: palette.border, backgroundColor: palette.glass1Bg }]} onPress={onSkip} activeOpacity={0.7}>
+            <Text style={[s.restSkipText, { color: palette.textSecondary }]}>Skip</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.restExtendBtn} onPress={handleExtend} activeOpacity={0.7}>
-            <Text style={s.restExtendText}>+15s</Text>
+          <TouchableOpacity style={[s.restExtendBtn, { backgroundColor: accent.primaryBg, borderColor: accent.primary + '30' }]} onPress={handleExtend} activeOpacity={0.7}>
+            <Text style={[s.restExtendText, { color: accent.primary }]}>+15s</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -102,48 +104,52 @@ function RestTimer({ seconds, onDone, onSkip }) {
 
 // ── WORKOUT SUMMARY ───────────────────────────────────────────────
 function WorkoutSummary({ type, duration, calBurn, exercises, totalSets, completedSets, elapsedTime, onLog, onDiscard }) {
+  const { palette, accent, gradients } = useTheme();
   const mins = Math.floor(elapsedTime / 60);
   const secs = elapsedTime % 60;
   const pctComplete = totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 100;
 
   return (
     <View style={s.summaryContainer}>
-      <View style={s.summaryCard}>
-        <Icon name="checkmark-circle" size={48} color={C.accent} />
-        <Text style={s.summaryTitle}>Workout Complete!</Text>
+      <GlassCard level={3} style={s.summaryCardInner}>
+        <Icon name="checkmark-circle" size={48} color={accent.primary} />
+        <Text style={[s.summaryTitle, { color: palette.textPrimary }]}>Workout Complete!</Text>
 
         <View style={s.summaryGrid}>
-          <SummaryStat icon="time-outline" value={`${mins}:${secs.toString().padStart(2, '0')}`} label="Duration" color={C.blue} />
-          <SummaryStat icon="flame-outline" value={`~${calBurn}`} label="Cal Burned" color={C.fat} />
-          <SummaryStat icon="list-outline" value={exercises.length} label="Exercises" color={C.accent} />
-          <SummaryStat icon="checkmark-done-outline" value={`${completedSets}/${totalSets}`} label="Sets Done" color={C.protein} />
+          <SummaryStat icon="time-outline" value={`${mins}:${secs.toString().padStart(2, '0')}`} label="Duration" color={accent.blue} />
+          <SummaryStat icon="flame-outline" value={`~${calBurn}`} label="Cal Burned" color={accent.energy} />
+          <SummaryStat icon="list-outline" value={exercises.length} label="Exercises" color={accent.primary} />
+          <SummaryStat icon="checkmark-done-outline" value={`${completedSets}/${totalSets}`} label="Sets Done" color={accent.protein} />
         </View>
 
         {pctComplete < 100 && (
-          <Text style={s.summaryPartial}>
+          <Text style={[s.summaryPartial, { color: accent.carbs }]}>
             {pctComplete}% completed — partial workout
           </Text>
         )}
 
-        <TouchableOpacity style={s.logBtn} onPress={onLog} activeOpacity={0.85}>
-          <Icon name="checkmark" size={20} color={C.textInverse} />
-          <Text style={s.logBtnText}>Log Workout</Text>
-        </TouchableOpacity>
+        <GradientButton
+          label="Log Workout"
+          onPress={onLog}
+          gradient={gradients.primary}
+          icon="checkmark"
+        />
 
         <TouchableOpacity style={s.discardBtn} onPress={onDiscard} activeOpacity={0.7}>
-          <Text style={s.discardBtnText}>Discard</Text>
+          <Text style={[s.discardBtnText, { color: palette.textTertiary }]}>Discard</Text>
         </TouchableOpacity>
-      </View>
+      </GlassCard>
     </View>
   );
 }
 
 function SummaryStat({ icon, value, label, color }) {
+  const { palette } = useTheme();
   return (
-    <View style={s.summaryStat}>
+    <View style={[s.summaryStat, { backgroundColor: palette.bg2, borderColor: palette.border }]}>
       <Icon name={icon} size={18} color={color} />
-      <Text style={s.summaryStatVal}>{value}</Text>
-      <Text style={s.summaryStatLbl}>{label}</Text>
+      <Text style={[s.summaryStatVal, { color: palette.textPrimary }]}>{value}</Text>
+      <Text style={[s.summaryStatLbl, { color: palette.textTertiary }]}>{label}</Text>
     </View>
   );
 }
@@ -152,6 +158,7 @@ function SummaryStat({ icon, value, label, color }) {
 export default function ActiveWorkoutScreen({ route, navigation }) {
   const { type, duration, calBurn, exercises } = route.params;
   const { logWorkout } = useApp();
+  const { mode, palette, accent, gradients } = useTheme();
 
   const [currentExIdx, setCurrentExIdx] = useState(0);
   const [currentSet, setCurrentSet] = useState(1);
@@ -179,13 +186,10 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
     setCompletedSets(newCompleted);
 
     if (currentSet < exercise.sets) {
-      // More sets of this exercise — start rest timer
       setResting(true);
     } else if (currentExIdx < exercises.length - 1) {
-      // Move to next exercise — start rest timer
       setResting(true);
     } else {
-      // All done
       hapticSuccess();
       setFinished(true);
     }
@@ -258,8 +262,8 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   if (finished) {
     const pctDone = totalSets > 0 ? completedSets / totalSets : 1;
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor={C.black} />
+      <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+        <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
         <WorkoutSummary
           type={type}
           duration={duration}
@@ -276,39 +280,42 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={C.black} />
+    <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
+      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
 
       {/* Top bar */}
       <View style={s.topBar}>
-        <TouchableOpacity onPress={handleExit} style={s.exitBtn} accessibilityLabel="End workout">
-          <Icon name="close" size={20} color={C.textSecondary} />
+        <TouchableOpacity onPress={handleExit} style={[s.exitBtn, { backgroundColor: palette.bg2, borderColor: palette.borderHi }]} accessibilityLabel="End workout">
+          <Icon name="close" size={20} color={palette.textSecondary} />
         </TouchableOpacity>
 
         <View style={s.topCenter}>
-          <Text style={s.topType}>{type}</Text>
-          <Text style={s.topTimer}>{mins}:{secs.toString().padStart(2, '0')}</Text>
+          <Text style={[s.topType, { color: palette.textSecondary }]}>{type}</Text>
+          <Text style={[s.topTimer, { color: palette.textPrimary }]}>{mins}:{secs.toString().padStart(2, '0')}</Text>
         </View>
 
-        <TouchableOpacity onPress={() => setPaused(p => !p)} style={s.pauseBtn} accessibilityLabel={paused ? 'Resume' : 'Pause'}>
-          <Icon name={paused ? 'play' : 'pause'} size={18} color={C.accent} />
+        <TouchableOpacity onPress={() => setPaused(p => !p)} style={[s.pauseBtn, { backgroundColor: accent.primaryBg, borderColor: accent.primary + '30' }]} accessibilityLabel={paused ? 'Resume' : 'Pause'}>
+          <Icon name={paused ? 'play' : 'pause'} size={18} color={accent.primary} />
         </TouchableOpacity>
       </View>
 
       {/* Progress bar */}
-      <View style={s.progressBarBg}>
-        <View style={[s.progressBarFill, { width: `${progressPct * 100}%` }]} />
+      <View style={[s.progressBarBg, { backgroundColor: palette.bg3 }]}>
+        <View style={[s.progressBarFill, { width: `${progressPct * 100}%`, backgroundColor: accent.primary }]} />
       </View>
 
       {/* Paused overlay */}
       {paused && (
-        <View style={s.pausedOverlay}>
+        <View style={[s.pausedOverlay, { backgroundColor: palette.overlay || (palette.bg0 + 'E6') }]}>
           <View style={s.pausedCard}>
-            <Icon name="pause-circle" size={48} color={C.accent} />
-            <Text style={s.pausedText}>Paused</Text>
-            <TouchableOpacity style={s.pausedResumeBtn} onPress={() => setPaused(false)} activeOpacity={0.85}>
-              <Text style={s.pausedResumeBtnText}>Resume</Text>
-            </TouchableOpacity>
+            <Icon name="pause-circle" size={48} color={accent.primary} />
+            <Text style={[s.pausedText, { color: palette.textPrimary }]}>Paused</Text>
+            <GradientButton
+              label="Resume"
+              onPress={() => setPaused(false)}
+              gradient={gradients.primary}
+              style={{ paddingHorizontal: 32 }}
+            />
           </View>
         </View>
       )}
@@ -327,32 +334,32 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
         <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
           {/* Exercise counter */}
-          <Text style={s.exCounter}>
+          <Text style={[s.exCounter, { color: palette.textTertiary }]}>
             Exercise {currentExIdx + 1} of {exercises.length}
           </Text>
 
           {/* Exercise card */}
-          <View style={s.exCard}>
-            <Text style={s.exName}>{exercise.name}</Text>
-            <Text style={s.exMuscle}>{exercise.muscle}</Text>
+          <GlassCard level={2} style={[s.exCardInner, { alignItems: 'center' }]}>
+            <Text style={[s.exName, { color: palette.textPrimary }]}>{exercise.name}</Text>
+            <Text style={[s.exMuscle, { color: palette.textSecondary }]}>{exercise.muscle}</Text>
 
-            <View style={s.exDivider} />
+            <View style={[s.exDivider, { backgroundColor: accent.primary }]} />
 
             {/* Reps / Set info */}
             <View style={s.exInfoRow}>
               <View style={s.exInfoItem}>
-                <Text style={s.exInfoVal}>{exercise.reps}</Text>
-                <Text style={s.exInfoLbl}>Reps</Text>
+                <Text style={[s.exInfoVal, { color: palette.textPrimary }]}>{exercise.reps}</Text>
+                <Text style={[s.exInfoLbl, { color: palette.textTertiary }]}>Reps</Text>
               </View>
-              <View style={s.exInfoDivider} />
+              <View style={[s.exInfoDivider, { backgroundColor: palette.border }]} />
               <View style={s.exInfoItem}>
-                <Text style={s.exInfoVal}>{currentSet}/{exercise.sets}</Text>
-                <Text style={s.exInfoLbl}>Set</Text>
+                <Text style={[s.exInfoVal, { color: palette.textPrimary }]}>{currentSet}/{exercise.sets}</Text>
+                <Text style={[s.exInfoLbl, { color: palette.textTertiary }]}>Set</Text>
               </View>
-              <View style={s.exInfoDivider} />
+              <View style={[s.exInfoDivider, { backgroundColor: palette.border }]} />
               <View style={s.exInfoItem}>
-                <Text style={s.exInfoVal}>{exercise.rest}s</Text>
-                <Text style={s.exInfoLbl}>Rest</Text>
+                <Text style={[s.exInfoVal, { color: palette.textPrimary }]}>{exercise.rest}s</Text>
+                <Text style={[s.exInfoLbl, { color: palette.textTertiary }]}>Rest</Text>
               </View>
             </View>
 
@@ -361,40 +368,41 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
               {Array.from({ length: exercise.sets }, (_, i) => (
                 <View key={i} style={[
                   s.setDot,
-                  i < currentSet - 1 && s.setDotDone,
-                  i === currentSet - 1 && s.setDotCurrent,
+                  { borderColor: palette.bg3, backgroundColor: palette.bg2 },
+                  i < currentSet - 1 && { backgroundColor: accent.primary, borderColor: accent.primary },
+                  i === currentSet - 1 && { borderColor: accent.primary, borderStyle: 'dashed' },
                 ]} >
-                  {i < currentSet - 1 && <Icon name="checkmark" size={10} color={C.textInverse} />}
+                  {i < currentSet - 1 && <Icon name="checkmark" size={10} color={palette.textInverse} />}
                 </View>
               ))}
             </View>
-          </View>
+          </GlassCard>
 
           {/* Up next */}
           {currentExIdx < exercises.length - 1 && (
-            <View style={s.upNext}>
-              <Text style={s.upNextLabel}>Up Next</Text>
-              <Text style={s.upNextName}>{exercises[currentExIdx + 1].name}</Text>
-              <Text style={s.upNextMuscle}>{exercises[currentExIdx + 1].muscle}</Text>
+            <View style={[s.upNext, { backgroundColor: palette.bg1, borderColor: palette.border }]}>
+              <Text style={[s.upNextLabel, { color: palette.textTertiary }]}>Up Next</Text>
+              <Text style={[s.upNextName, { color: palette.textPrimary }]}>{exercises[currentExIdx + 1].name}</Text>
+              <Text style={[s.upNextMuscle, { color: palette.textSecondary }]}>{exercises[currentExIdx + 1].muscle}</Text>
             </View>
           )}
 
           {/* Running stats */}
-          <View style={s.statsRow}>
+          <View style={[s.statsRow, { backgroundColor: palette.bg1, borderColor: palette.border }]}>
             <View style={s.statItem}>
-              <Icon name="checkmark-done-outline" size={16} color={C.accent} />
-              <Text style={s.statVal}>{completedSets}/{totalSets}</Text>
-              <Text style={s.statLbl}>Sets</Text>
+              <Icon name="checkmark-done-outline" size={16} color={accent.primary} />
+              <Text style={[s.statVal, { color: palette.textPrimary }]}>{completedSets}/{totalSets}</Text>
+              <Text style={[s.statLbl, { color: palette.textTertiary }]}>Sets</Text>
             </View>
             <View style={s.statItem}>
-              <Icon name="flame-outline" size={16} color={C.fat} />
-              <Text style={s.statVal}>~{Math.round(calBurn * progressPct)}</Text>
-              <Text style={s.statLbl}>Cal</Text>
+              <Icon name="flame-outline" size={16} color={accent.energy} />
+              <Text style={[s.statVal, { color: palette.textPrimary }]}>~{Math.round(calBurn * progressPct)}</Text>
+              <Text style={[s.statLbl, { color: palette.textTertiary }]}>Cal</Text>
             </View>
             <View style={s.statItem}>
-              <Icon name="time-outline" size={16} color={C.blue} />
-              <Text style={s.statVal}>{mins}:{secs.toString().padStart(2, '0')}</Text>
-              <Text style={s.statLbl}>Elapsed</Text>
+              <Icon name="time-outline" size={16} color={accent.blue} />
+              <Text style={[s.statVal, { color: palette.textPrimary }]}>{mins}:{secs.toString().padStart(2, '0')}</Text>
+              <Text style={[s.statLbl, { color: palette.textTertiary }]}>Elapsed</Text>
             </View>
           </View>
 
@@ -403,13 +411,13 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
 
       {/* Bottom action */}
       {!resting && !paused && (
-        <View style={s.bottomBar}>
-          <TouchableOpacity style={s.skipExBtn} onPress={handleSkipExercise} activeOpacity={0.7}>
-            <Text style={s.skipExText}>Skip Exercise</Text>
+        <View style={[s.bottomBar, { backgroundColor: palette.bg0, borderTopColor: palette.border }]}>
+          <TouchableOpacity style={[s.skipExBtn, { borderColor: palette.border, backgroundColor: palette.glass1Bg }]} onPress={handleSkipExercise} activeOpacity={0.7}>
+            <Text style={[s.skipExText, { color: palette.textSecondary }]}>Skip Exercise</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.completeSetBtn} onPress={handleSetComplete} activeOpacity={0.85}>
-            <Icon name="checkmark" size={22} color={C.textInverse} />
-            <Text style={s.completeSetText}>
+          <TouchableOpacity style={[s.completeSetBtn, { backgroundColor: accent.primary }]} onPress={handleSetComplete} activeOpacity={0.85}>
+            <Icon name="checkmark" size={22} color={palette.textInverse} />
+            <Text style={[s.completeSetText, { color: palette.textInverse }]}>
               {currentSet === exercise.sets && currentExIdx === exercises.length - 1
                 ? 'Finish Workout'
                 : 'Complete Set'}
@@ -422,7 +430,7 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.black },
+  safe: { flex: 1 },
 
   // Top bar
   topBar: {
@@ -431,164 +439,137 @@ const s = StyleSheet.create({
   },
   exitBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   topCenter: { alignItems: 'center' },
-  topType: { fontSize: 12, fontWeight: '700', color: C.textSecondary },
-  topTimer: { fontSize: 28, fontWeight: '900', color: C.textPrimary, letterSpacing: -1 },
+  topType: { fontSize: 12, fontWeight: '700' },
+  topTimer: { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
   pauseBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: C.accentBg, borderWidth: 1, borderColor: C.accent + '30',
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
 
   // Progress bar
-  progressBarBg: { height: 3, backgroundColor: C.surface2 },
-  progressBarFill: { height: 3, backgroundColor: C.accent, borderRadius: 2 },
+  progressBarBg: { height: 3 },
+  progressBarFill: { height: 3, borderRadius: 2 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 120 },
 
   // Exercise counter
-  exCounter: { fontSize: 12, fontWeight: '600', color: C.textTertiary, textAlign: 'center', marginBottom: SPACING.md },
+  exCounter: { fontSize: 12, fontWeight: '600', textAlign: 'center', marginBottom: SPACING.md },
 
-  // Exercise card
-  exCard: {
-    backgroundColor: C.surface1, borderRadius: RADIUS.xl,
-    padding: SPACING.lg, borderWidth: 1, borderColor: C.border,
-    alignItems: 'center', marginBottom: SPACING.md,
-  },
-  exName: { fontSize: 26, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5, textAlign: 'center' },
-  exMuscle: { fontSize: 14, fontWeight: '600', color: C.textSecondary, marginTop: 4 },
-  exDivider: { width: 40, height: 2, backgroundColor: C.accent, borderRadius: 1, marginVertical: SPACING.md },
+  // Exercise card inner
+  exCardInner: { marginBottom: SPACING.md },
+  exName: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5, textAlign: 'center' },
+  exMuscle: { fontSize: 14, fontWeight: '600', marginTop: 4 },
+  exDivider: { width: 40, height: 2, borderRadius: 1, marginVertical: SPACING.md },
 
   exInfoRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   exInfoItem: { flex: 1, alignItems: 'center', gap: 4 },
-  exInfoVal: { fontSize: 22, fontWeight: '900', color: C.textPrimary },
-  exInfoLbl: { fontSize: 10, fontWeight: '600', color: C.textTertiary, letterSpacing: 0.5 },
-  exInfoDivider: { width: 1, height: 32, backgroundColor: C.border },
+  exInfoVal: { fontSize: 22, fontWeight: '900' },
+  exInfoLbl: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  exInfoDivider: { width: 1, height: 32 },
 
   // Set dots
   setDots: { flexDirection: 'row', gap: 8, marginTop: SPACING.lg },
   setDot: {
     width: 28, height: 28, borderRadius: 14,
-    borderWidth: 2, borderColor: C.surface4,
-    backgroundColor: C.surface2,
+    borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',
   },
-  setDotDone: { backgroundColor: C.accent, borderColor: C.accent },
-  setDotCurrent: { borderColor: C.accent, borderStyle: 'dashed' },
 
   // Up next
   upNext: {
-    backgroundColor: C.surface1, borderRadius: RADIUS.lg,
-    padding: SPACING.md, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md, borderWidth: 1,
     marginBottom: SPACING.md,
   },
-  upNextLabel: { fontSize: 10, fontWeight: '700', color: C.textTertiary, letterSpacing: 0.5, marginBottom: 4 },
-  upNextName: { fontSize: 16, fontWeight: '800', color: C.textPrimary },
-  upNextMuscle: { fontSize: 12, color: C.textSecondary, marginTop: 2 },
+  upNextLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 },
+  upNextName: { fontSize: 16, fontWeight: '800' },
+  upNextMuscle: { fontSize: 12, marginTop: 2 },
 
   // Stats row
   statsRow: {
     flexDirection: 'row', gap: 10,
-    backgroundColor: C.surface1, borderRadius: RADIUS.lg,
-    padding: SPACING.md, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md, borderWidth: 1,
   },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },
-  statVal: { fontSize: 16, fontWeight: '800', color: C.textPrimary },
-  statLbl: { fontSize: 9, fontWeight: '600', color: C.textTertiary },
+  statVal: { fontSize: 16, fontWeight: '800' },
+  statLbl: { fontSize: 9, fontWeight: '600' },
 
   // Bottom bar
   bottomBar: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', gap: 10,
     padding: SPACING.md, paddingBottom: SPACING.xl,
-    backgroundColor: C.black,
-    borderTopWidth: 1, borderTopColor: C.border,
+    borderTopWidth: 1,
   },
   skipExBtn: {
     paddingHorizontal: 20, paddingVertical: 16,
-    borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.border,
-    backgroundColor: C.surface1, justifyContent: 'center',
+    borderRadius: RADIUS.full, borderWidth: 1,
+    justifyContent: 'center',
   },
-  skipExText: { fontSize: 14, fontWeight: '700', color: C.textSecondary },
+  skipExText: { fontSize: 14, fontWeight: '700' },
   completeSetBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: C.accent, borderRadius: RADIUS.full,
+    borderRadius: RADIUS.full,
     paddingVertical: 16,
-    ...SHADOW.accent,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
   },
-  completeSetText: { fontSize: 15, fontWeight: '800', color: C.textInverse },
+  completeSetText: { fontSize: 15, fontWeight: '800' },
 
   // Rest timer
   restOverlay: {
     ...StyleSheet.absoluteFillObject, top: 50,
-    backgroundColor: C.black + 'E6',
     alignItems: 'center', justifyContent: 'center',
     zIndex: 10,
   },
   restCard: { alignItems: 'center', gap: 8 },
-  restLabel: { fontSize: 14, fontWeight: '700', color: C.textTertiary, letterSpacing: 1 },
-  restTime: { fontSize: 72, fontWeight: '900', color: C.accent, letterSpacing: -3 },
-  restSec: { fontSize: 14, fontWeight: '600', color: C.textTertiary, marginTop: -8 },
-  restBarBg: { width: 200, height: 4, backgroundColor: C.surface3, borderRadius: 2, marginTop: SPACING.md },
-  restBarFill: { height: 4, backgroundColor: C.accent, borderRadius: 2 },
+  restLabel: { fontSize: 14, fontWeight: '700', letterSpacing: 1 },
+  restTime: { fontSize: 72, fontWeight: '900', letterSpacing: -3 },
+  restSec: { fontSize: 14, fontWeight: '600', marginTop: -8 },
+  restBarBg: { width: 200, height: 4, borderRadius: 2, marginTop: SPACING.md },
+  restBarFill: { height: 4, borderRadius: 2 },
   restBtns: { flexDirection: 'row', gap: 12, marginTop: SPACING.lg },
   restSkipBtn: {
     paddingHorizontal: 24, paddingVertical: 12,
-    borderRadius: RADIUS.full, borderWidth: 1, borderColor: C.border,
-    backgroundColor: C.surface1,
+    borderRadius: RADIUS.full, borderWidth: 1,
   },
-  restSkipText: { fontSize: 14, fontWeight: '700', color: C.textSecondary },
+  restSkipText: { fontSize: 14, fontWeight: '700' },
   restExtendBtn: {
     paddingHorizontal: 24, paddingVertical: 12,
-    borderRadius: RADIUS.full, backgroundColor: C.accentBg,
-    borderWidth: 1, borderColor: C.accent + '30',
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
   },
-  restExtendText: { fontSize: 14, fontWeight: '700', color: C.accent },
+  restExtendText: { fontSize: 14, fontWeight: '700' },
 
   // Paused
   pausedOverlay: {
     ...StyleSheet.absoluteFillObject, top: 50,
-    backgroundColor: C.black + 'E6',
     alignItems: 'center', justifyContent: 'center',
     zIndex: 10,
   },
   pausedCard: { alignItems: 'center', gap: 12 },
-  pausedText: { fontSize: 28, fontWeight: '900', color: C.textPrimary },
-  pausedResumeBtn: {
-    paddingHorizontal: 32, paddingVertical: 14,
-    borderRadius: RADIUS.full, backgroundColor: C.accent,
-    marginTop: 8, ...SHADOW.accent,
-  },
-  pausedResumeBtnText: { fontSize: 16, fontWeight: '800', color: C.textInverse },
+  pausedText: { fontSize: 28, fontWeight: '900' },
 
   // Summary
   summaryContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACING.md },
-  summaryCard: {
-    width: '100%', backgroundColor: C.surface1, borderRadius: RADIUS.xl,
-    padding: SPACING.lg, borderWidth: 1, borderColor: C.border,
-    alignItems: 'center', gap: 16,
-  },
-  summaryTitle: { fontSize: 24, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
+  summaryCardInner: { width: '100%', alignItems: 'center', gap: 16 },
+  summaryTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
   summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, width: '100%' },
   summaryStat: {
     flex: 1, minWidth: '40%', alignItems: 'center', gap: 4,
-    backgroundColor: C.surface2, borderRadius: RADIUS.md,
-    paddingVertical: 14, borderWidth: 1, borderColor: C.border,
+    borderRadius: RADIUS.md,
+    paddingVertical: 14, borderWidth: 1,
   },
-  summaryStatVal: { fontSize: 20, fontWeight: '900', color: C.textPrimary },
-  summaryStatLbl: { fontSize: 10, fontWeight: '600', color: C.textTertiary },
-  summaryPartial: { fontSize: 12, fontWeight: '600', color: C.carbs },
+  summaryStatVal: { fontSize: 20, fontWeight: '900' },
+  summaryStatLbl: { fontSize: 10, fontWeight: '600' },
+  summaryPartial: { fontSize: 12, fontWeight: '600' },
 
-  logBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    width: '100%', backgroundColor: C.accent, borderRadius: RADIUS.full,
-    paddingVertical: 16, ...SHADOW.accent,
-  },
-  logBtnText: { fontSize: 16, fontWeight: '800', color: C.textInverse },
   discardBtn: { paddingVertical: 10 },
-  discardBtnText: { fontSize: 14, fontWeight: '600', color: C.textTertiary },
+  discardBtnText: { fontSize: 14, fontWeight: '600' },
 });
