@@ -1,19 +1,19 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import crashlytics from '@react-native-firebase/crashlytics';
 import analytics from '@react-native-firebase/analytics';
 
 import { AppProvider, useApp } from './src/context/AppContext';
-import { ThemeProvider } from './src/context/ThemeContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { useAuth } from './src/context/AuthContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import { C, SHADOW } from './src/constants/theme';
+import { SHADOW } from './src/constants/theme';
 import { Toast } from './src/components/UI';
-import Icon from './src/components/Icon';
+import { GlassTabBar } from './src/components';
 
 import AuthScreen      from './src/screens/AuthScreen';
 import OnboardScreen   from './src/screens/OnboardScreen';
@@ -46,25 +46,11 @@ const COMPONENTS = {
   Workout: WorkoutScreen,
 };
 
-function TabIcon({ icon, label, focused }) {
-  return (
-    <View style={ts.item}>
-      <View style={[ts.iconWrap, focused && ts.iconWrapOn]}>
-        <Icon name={icon} size={20} color={focused ? C.accent : C.textMuted} />
-      </View>
-      <Text style={[ts.label, focused && ts.labelOn]}>{label}</Text>
-    </View>
-  );
-}
-
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: false,
-        tabBarStyle: ts.bar,
-      }}
+      tabBar={(props) => <GlassTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
       {TABS.map(t => (
         <Tab.Screen
@@ -72,10 +58,8 @@ function MainTabs() {
           name={t.name}
           component={COMPONENTS[t.name]}
           options={{
-            tabBarAccessibilityLabel: t.label,
-            tabBarIcon: ({ focused }) => (
-              <TabIcon icon={focused ? t.iconOn : t.icon} label={t.label} focused={focused} />
-            ),
+            tabBarLabel: t.label,
+            tabBarIconName: t.iconOn,
           }}
         />
       ))}
@@ -85,13 +69,14 @@ function MainTabs() {
 
 // Loading screen shown during Firebase auth initialization
 function SplashScreen() {
+  const { palette, accent } = useTheme();
   return (
-    <View style={ts.splash}>
-      <View style={ts.splashLogo}>
-        <Text style={ts.splashLogoText}>N</Text>
+    <View style={[ts.splash, { backgroundColor: palette.bg0 }]}>
+      <View style={[ts.splashLogo, { backgroundColor: accent.primary }]}>
+        <Text style={[ts.splashLogoText, { color: palette.textInverse }]}>N</Text>
       </View>
-      <Text style={ts.splashName}>NutriSmart</Text>
-      <ActivityIndicator color={C.accent} style={{ marginTop: 20 }} />
+      <Text style={[ts.splashName, { color: palette.textPrimary }]}>NutriSmart</Text>
+      <ActivityIndicator color={accent.primary} style={{ marginTop: 20 }} />
     </View>
   );
 }
@@ -99,8 +84,20 @@ function SplashScreen() {
 function RootNav() {
   const { toast } = useApp();
   const { user, initializing, isOnboarded } = useAuth();
+  const { mode, palette } = useTheme();
   const routeNameRef = React.useRef();
   const navigationRef = React.useRef();
+
+  const navTheme = {
+    ...(mode === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(mode === 'dark' ? DarkTheme : DefaultTheme).colors,
+      background: palette.bg0,
+      card: palette.bg1,
+      text: palette.textPrimary,
+      border: palette.border,
+    },
+  };
 
   // Set Crashlytics user ID for crash reports
   useEffect(() => {
@@ -115,9 +112,10 @@ function RootNav() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.black }}>
+    <View style={{ flex: 1, backgroundColor: palette.bg0 }}>
       <NavigationContainer
         ref={navigationRef}
+        theme={navTheme}
         onReady={() => { routeNameRef.current = navigationRef.current?.getCurrentRoute()?.name; }}
         onStateChange={async () => {
           const previousRoute = routeNameRef.current;
@@ -156,12 +154,17 @@ function RootNav() {
   );
 }
 
+function ThemedStatusBar() {
+  const { mode, palette } = useTheme();
+  return <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={palette.bg0} />;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
         <SafeAreaProvider>
-          <StatusBar barStyle="light-content" backgroundColor={C.black} />
+          <ThemedStatusBar />
           <AppProvider>
             <RootNav />
           </AppProvider>
@@ -172,42 +175,16 @@ export default function App() {
 }
 
 const ts = StyleSheet.create({
-  bar: {
-    backgroundColor: C.surface0,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    height: 76,
-    paddingBottom: 10,
-    paddingTop: 6,
-    ...SHADOW.md,
-  },
-  item: { alignItems: 'center', gap: 3 },
-  iconWrap: {
-    width: 44, height: 30,
-    borderRadius: 15,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  iconWrapOn: {
-    backgroundColor: C.accentBg,
-    borderWidth: 1,
-    borderColor: C.accent + '30',
-  },
-  icon:    { fontSize: 18, color: C.textMuted },
-  iconOn:  { fontSize: 18, color: C.accent },
-  label:   { fontSize: 10, color: C.textTertiary, fontWeight: '600', letterSpacing: 0.3 },
-  labelOn: { color: C.accent, fontWeight: '700' },
-
   // Splash screen
   splash: {
-    flex: 1, backgroundColor: C.black,
+    flex: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   splashLogo: {
     width: 80, height: 80, borderRadius: 18,
-    backgroundColor: C.accent,
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 16, ...SHADOW.accent,
   },
-  splashLogoText: { fontSize: 44, fontWeight: '900', color: C.textInverse },
-  splashName: { fontSize: 28, fontWeight: '900', color: C.textPrimary, letterSpacing: -0.5 },
+  splashLogoText: { fontSize: 44, fontWeight: '900' },
+  splashName: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
 });
