@@ -266,6 +266,7 @@ const { seedRecipesAndReviews } = require("./seed");
 
 const rcWebhookSecret = defineSecret("REVENUECAT_WEBHOOK_SECRET");
 const seedSecret = defineSecret("SEED_SECRET");
+const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 
 exports.handleSubscriptionWebhook = onRequest(
   { secrets: [rcWebhookSecret] },
@@ -404,5 +405,216 @@ exports.seedRecipesHttp = onRequest(
       console.error("[Seed] Error:", error);
       res.status(500).send("Internal Server Error");
     }
+  },
+);
+
+// ── AI CHAT ────────────────────────────────────────────────────────
+
+// TDEE Calculation (Mifflin-St Jeor) — mirrors client-side DataContext
+function calculateTDEE(age, height, weight, units, goal) {
+  const ageNum = parseInt(age, 10);
+  const heightNum = parseFloat(height);
+  const weightNum = parseFloat(weight);
+  if (!ageNum || !heightNum || !weightNum) return 2200;
+
+  const weightKg = units === "Imperial" ? weightNum * 0.453592 : weightNum;
+  const heightCm = units === "Imperial" ? heightNum * 2.54 : heightNum;
+  const bmr = 10 * weightKg + 6.25 * heightCm - 5 * ageNum;
+  const tdee = Math.round(bmr * 1.55);
+
+  if (goal === "Lose Weight") return Math.round(tdee - 500);
+  if (goal === "Build Muscle") return Math.round(tdee + 300);
+  return tdee;
+}
+
+function calculateMacroGoals(calGoal, goal) {
+  if (goal === "Build Muscle") {
+    return {
+      protein: Math.round((calGoal * 0.35) / 4),
+      carbs: Math.round((calGoal * 0.40) / 4),
+      fat: Math.round((calGoal * 0.25) / 9),
+    };
+  }
+  if (goal === "Lose Weight") {
+    return {
+      protein: Math.round((calGoal * 0.30) / 4),
+      carbs: Math.round((calGoal * 0.40) / 4),
+      fat: Math.round((calGoal * 0.30) / 9),
+    };
+  }
+  return {
+    protein: Math.round((calGoal * 0.25) / 4),
+    carbs: Math.round((calGoal * 0.50) / 4),
+    fat: Math.round((calGoal * 0.25) / 9),
+  };
+}
+
+async function buildSystemPrompt(uid) {
+  // Read user profile
+  const userDoc = await db.collection("users").doc(uid).get();
+  const profile = userDoc.exists ? userDoc.data() : {};
+
+  const goal = profile.goal || "Stay Healthy";
+  const age = profile.age || "";
+  const height = profile.height || "";
+  const weight = profile.weight || "";
+  const diet = profile.diet || "No Restrictions";
+  const units = profile.units || "Imperial";
+  const calGoal = profile.calGoal || calculateTDEE(age, height, weight, units, goal);
+  const macros = calculateMacroGoals(calGoal, goal);
+
+  // Read today's meals
+  const todayStr = new Date().toDateString();
+  const mealsSnap = await db
+    .collection("users").doc(uid).collection("meals")
+    .where("date", "==", todayStr)
+    .limit(20)
+    .get();
+
+  const meals = mealsSnap.docs.map((d) => d.data());
+  const totalCals = meals.reduce((a, m) => a + (m.cal || 0), 0);
+  const totalProtein = meals.reduce((a, m) => a + (m.protein || 0), 0);
+  const totalCarbs = meals.reduce((a, m) => a + (m.carbs || 0), 0);
+  const totalFat = meals.reduce((a, m) => a + (m.fat || 0), 0);
+  const mealList = meals.map((m) => `${m.name} (${m.cal} cal)`).join(", ") || "None yet";
+
+  // Read pantry
+  const pantrySnap = await db
+    .collection("users").doc(uid).collection("pantry")
+    .limit(1)
+    .get();
+  let pantryItems = [];
+  if (!pantrySnap.empty) {
+    const pantryData = pantrySnap.docs[0].data();
+    pantryItems = pantryData.items || [];
+  }
+  const pantryList = pantryItems.length > 0 ? pantryItems.join(", ") : "Not set";
+
+  const unitLabel = units === "Imperial" ? "in/lbs" : "cm/kg";
+
+  return `You are NutriAI Coach, a friendly and knowledgeable nutrition and fitness assistant.
+
+User Profile:
+- Goal: ${goal}
+- Age: ${age}, Height: ${height}${unitLabel}, Weight: ${weight}${unitLabel}
+- Diet: ${diet}
+- Daily calorie target: ${calGoal} kcal
+- Macro targets: ${macros.protein}g protein, ${macros.carbs}g carbs, ${macros.fat}g fat
+
+Today's Progress:
+- Calories: ${totalCals}/${calGoal} kcal
+- Protein: ${totalProtein}g/${macros.protein}g, Carbs: ${totalCarbs}g/${macros.carbs}g, Fat: ${totalFat}g/${macros.fat}g
+- Meals logged: ${mealList}
+
+Pantry items: ${pantryList}
+
+Guidelines:
+- Give concise, actionable advice
+- Reference the user's actual data when relevant
+- Stay focused on nutrition, fitness, and wellness
+- If asked about medical conditions, recommend consulting a healthcare professional
+- Use ${units === "Imperial" ? "imperial" : "metric"} units to match the user's preference
+- Keep responses under 300 words unless the user asks for detail`;
+}
+
+exports.aiChat = onCall(
+  { secrets: [anthropicApiKey], enforceAppCheck: false },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be signed in");
+    }
+
+    const uid = request.auth.uid;
+    const { message } = request.data;
+
+    // Validate input
+    if (!message || typeof message !== "string" || message.trim().length === 0) {
+      throw new HttpsError("invalid-argument", "Message is required");
+    }
+    if (message.length > 2000) {
+      throw new HttpsError("invalid-argument", "Message too long (max 2000 characters)");
+    }
+
+    // Rate limit: 30 user messages per hour
+    const chatRef = db
+      .collection("users").doc(uid)
+      .collection("aiChats").doc("current");
+    const messagesRef = chatRef.collection("messages");
+
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentMsgs = await messagesRef
+      .where("role", "==", "user")
+      .where("createdAt", ">=", oneHourAgo)
+      .limit(30)
+      .get();
+
+    if (recentMsgs.size >= 30) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Message limit reached. Try again later.",
+      );
+    }
+
+    // Build system prompt from user's Firestore data
+    const systemPrompt = await buildSystemPrompt(uid);
+
+    // Retrieve last 20 messages for conversation history
+    const historySnap = await messagesRef
+      .orderBy("createdAt", "asc")
+      .limitToLast(20)
+      .get();
+
+    const history = historySnap.docs.map((doc) => {
+      const d = doc.data();
+      return { role: d.role, content: d.content };
+    });
+
+    // Call Claude API
+    const Anthropic = require("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey: anthropicApiKey.value() });
+
+    let assistantText;
+    try {
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [...history, { role: "user", content: message.trim() }],
+      });
+      assistantText = response.content[0].text;
+    } catch (err) {
+      console.error("[AI Chat] Claude API error:", err);
+      throw new HttpsError("internal", "AI service temporarily unavailable");
+    }
+
+    // Store both messages in Firestore
+    const now = FieldValue.serverTimestamp();
+    const batch = db.batch();
+
+    batch.set(messagesRef.doc(), {
+      role: "user",
+      content: message.trim(),
+      createdAt: now,
+    });
+    batch.set(messagesRef.doc(), {
+      role: "assistant",
+      content: assistantText,
+      createdAt: now,
+    });
+
+    // Update or create chat metadata
+    batch.set(
+      chatRef,
+      {
+        lastMessageAt: now,
+        messageCount: FieldValue.increment(2),
+        createdAt: now,
+      },
+      { merge: true },
+    );
+
+    await batch.commit();
+
+    return { message: assistantText };
   },
 );
