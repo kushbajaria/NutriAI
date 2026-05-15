@@ -1,8 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Bump this when recipe schema changes to invalidate stale caches
+const CACHE_SCHEMA_VERSION = 2;
+
 const KEYS = {
   RECIPES: '@nutrismart_recipes',
   RECIPES_TIMESTAMP: '@nutrismart_recipes_ts',
+  RECIPES_SCHEMA: '@nutrismart_recipes_schema',
   PANTRY: '@nutrismart_pantry',
   MEALS: '@nutrismart_meals',
   STREAK: '@nutrismart_streak',
@@ -10,14 +14,18 @@ const KEYS = {
   PROFILE: '@nutrismart_profile',
 };
 
-// ── Recipes (cached with 24h TTL) ────────────────────────────────
+// ── Recipes (cached with 24h TTL + schema version) ───────────────
 
 export async function cacheRecipes(recipes) {
   await AsyncStorage.setItem(KEYS.RECIPES, JSON.stringify(recipes));
   await AsyncStorage.setItem(KEYS.RECIPES_TIMESTAMP, Date.now().toString());
+  await AsyncStorage.setItem(KEYS.RECIPES_SCHEMA, String(CACHE_SCHEMA_VERSION));
 }
 
 export async function getCachedRecipes() {
+  const version = await AsyncStorage.getItem(KEYS.RECIPES_SCHEMA);
+  if (!version || parseInt(version, 10) !== CACHE_SCHEMA_VERSION) return null;
+
   const ts = await AsyncStorage.getItem(KEYS.RECIPES_TIMESTAMP);
   if (!ts) return null;
 
