@@ -32,9 +32,10 @@ service cloud.firestore {
       allow create: if isOwner(userId)
                     && docSizeOk();
 
-      // Allow update — validate profilePhoto size if present
+      // Allow update — validate profilePhoto size, block client writes to subscription field
       allow update: if isOwner(userId)
                     && docSizeOk()
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription'])
                     && (
                       !('profilePhoto' in request.resource.data)
                       || request.resource.data.profilePhoto == null

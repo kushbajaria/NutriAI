@@ -1,6 +1,7 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
@@ -257,5 +258,103 @@ exports.exportMyData = onCall(
     }
 
     return data;
+  },
+);
+
+// ── REVENUECAT SUBSCRIPTION WEBHOOK ─────────────────────────────────
+const rcWebhookSecret = defineSecret("REVENUECAT_WEBHOOK_SECRET");
+
+exports.handleSubscriptionWebhook = onRequest(
+  { secrets: [rcWebhookSecret] },
+  async (req, res) => {
+    // Only allow POST
+    if (req.method !== "POST") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    // Verify authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${rcWebhookSecret.value()}`) {
+      res.status(401).send("Unauthorized");
+      return;
+    }
+
+    try {
+      const event = req.body?.event;
+      if (!event) {
+        res.status(400).send("Missing event");
+        return;
+      }
+
+      const { type, app_user_id: uid } = event;
+      if (!uid) {
+        res.status(400).send("Missing app_user_id");
+        return;
+      }
+
+      const userRef = db.collection("users").doc(uid);
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) {
+        console.warn(`[Webhook] User ${uid} not found`);
+        res.status(200).send("OK");
+        return;
+      }
+
+      let subscriptionUpdate;
+
+      switch (type) {
+        case "INITIAL_PURCHASE":
+        case "RENEWAL":
+        case "PRODUCT_CHANGE":
+          subscriptionUpdate = {
+            status: "pro",
+            plan: event.product_id || null,
+            expiresAt: event.expiration_at_ms
+              ? new Date(event.expiration_at_ms)
+              : null,
+            rcUserId: event.original_app_user_id || uid,
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          break;
+
+        case "CANCELLATION":
+          subscriptionUpdate = {
+            status: "cancelled",
+            expiresAt: event.expiration_at_ms
+              ? new Date(event.expiration_at_ms)
+              : null,
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          break;
+
+        case "EXPIRATION":
+          subscriptionUpdate = {
+            status: "expired",
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          break;
+
+        case "BILLING_ISSUE":
+          subscriptionUpdate = {
+            status: "billing_issue",
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          break;
+
+        default:
+          // Unknown event type — acknowledge but don't update
+          console.log(`[Webhook] Unhandled event type: ${type}`);
+          res.status(200).send("OK");
+          return;
+      }
+
+      await userRef.update({ subscription: subscriptionUpdate });
+      console.log(`[Webhook] Updated subscription for ${uid}: ${type}`);
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("[Webhook] Error:", error);
+      res.status(500).send("Internal Server Error");
+    }
   },
 );
