@@ -6,7 +6,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RADIUS, SPACING } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
-import { RECIPES } from '../constants/data';
 import { useApp } from '../context/AppContext';
 import { GlassCard, GradientButton, BlurHeader, GlassBottomSheet, Badge } from '../components';
 import Icon from '../components/Icon';
@@ -14,7 +13,7 @@ import Icon from '../components/Icon';
 const FILTERS = ['All', 'High Protein', 'Quick', 'Vegetarian', 'Meal Prep', 'Clean Eating'];
 
 export default function FoodSearchScreen({ navigation }) {
-  const { pantry, logMeal } = useApp();
+  const { pantry, logMeal, recipes, recipesLoaded } = useApp();
   const { mode, palette, accent, gradients } = useTheme();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('All');
@@ -27,7 +26,7 @@ export default function FoodSearchScreen({ navigation }) {
   const [customMealTime, setCustomMealTime] = useState(null);
 
   const results = useMemo(() => {
-    let list = RECIPES;
+    let list = recipes;
 
     // Tag filter
     if (filter !== 'All') {
@@ -49,7 +48,7 @@ export default function FoodSearchScreen({ navigation }) {
       const matched = r.ingredients.filter(i => pantry.includes(i));
       return { ...r, matchCount: matched.length, canMake: matched.length === r.ingredients.length };
     });
-  }, [query, filter, pantry]);
+  }, [query, filter, pantry, recipes]);
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: palette.bg0 }]} edges={['top']}>
