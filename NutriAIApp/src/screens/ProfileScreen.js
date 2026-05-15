@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RADIUS, SPACING } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { useUI } from '../context/UIContext';
 import { signOutUser, deleteAccount, reauthenticateWithPassword } from '../services/auth';
 import { exportUserData, updateUserProfile } from '../services/firestore';
@@ -104,6 +105,48 @@ function NumberSheet({ visible, onClose, title, placeholder, unit, value, onSave
 }
 
 // ── MAIN SCREEN ────────────────────────────────────────────────────
+function ProCard({ navigation }) {
+  const { palette, accent, gradients } = useTheme();
+  const { isPro, isTrialing } = useSubscription();
+  const LinearGradient = require('react-native-linear-gradient').default;
+
+  if (isPro) {
+    return (
+      <TouchableOpacity
+        style={[ps.proCard, { borderColor: accent.premium + '30' }]}
+        onPress={() => navigation.navigate('Subscription')}
+        activeOpacity={0.7}
+      >
+        <LinearGradient colors={gradients.premium} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ps.proBadge}>
+          <Icon name="diamond" size={18} color="#FFFFFF" />
+        </LinearGradient>
+        <View style={{ flex: 1 }}>
+          <Text style={[ps.proTitle, { color: palette.textPrimary }]}>NutriSmart Pro</Text>
+          <Text style={[ps.proSub, { color: palette.textTertiary }]}>{isTrialing ? 'Free Trial' : 'Active'}</Text>
+        </View>
+        <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      style={[ps.proCard, { borderColor: accent.premium + '30' }]}
+      onPress={() => navigation.navigate('Paywall')}
+      activeOpacity={0.7}
+    >
+      <LinearGradient colors={gradients.premium} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ps.proBadge}>
+        <Icon name="sparkles" size={18} color="#FFFFFF" />
+      </LinearGradient>
+      <View style={{ flex: 1 }}>
+        <Text style={[ps.proTitle, { color: palette.textPrimary }]}>Upgrade to Pro</Text>
+        <Text style={[ps.proSub, { color: palette.textTertiary }]}>AI Coach, Meal Plans, Programs & more</Text>
+      </View>
+      <Icon name="chevron-forward" size={16} color={accent.premium} />
+    </TouchableOpacity>
+  );
+}
+
 export default function ProfileScreen({ navigation }) {
   const {
     goal, setGoal,
@@ -346,6 +389,11 @@ export default function ProfileScreen({ navigation }) {
         </View>
         </FadeIn>
 
+        {/* Subscription card */}
+        <FadeIn delay={170}>
+          <ProCard navigation={navigation} />
+        </FadeIn>
+
         {/* Settings */}
         <FadeIn delay={180}>
         <SectionHeader title="Settings" />
@@ -431,13 +479,52 @@ export default function ProfileScreen({ navigation }) {
 
           {/* About */}
           <TouchableOpacity
-            style={[ps.settingRow, ps.infoRowLast, { borderBottomColor: palette.border }]}
+            style={[ps.settingRow, { borderBottomColor: palette.border }]}
             onPress={() => setActiveSheet('about')}
             activeOpacity={0.7}
           >
             <View style={ps.settingLeft}>
               <Icon name="information-circle-outline" size={18} color={palette.textSecondary} />
               <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>About NutriSmart</Text>
+            </View>
+            <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
+          </TouchableOpacity>
+
+          {/* Subscription */}
+          <TouchableOpacity
+            style={[ps.settingRow, { borderBottomColor: palette.border }]}
+            onPress={() => navigation.navigate('Subscription')}
+            activeOpacity={0.7}
+          >
+            <View style={ps.settingLeft}>
+              <Icon name="diamond-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Subscription</Text>
+            </View>
+            <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
+          </TouchableOpacity>
+
+          {/* Security */}
+          <TouchableOpacity
+            style={[ps.settingRow, { borderBottomColor: palette.border }]}
+            onPress={() => navigation.navigate('SecuritySettings')}
+            activeOpacity={0.7}
+          >
+            <View style={ps.settingLeft}>
+              <Icon name="shield-checkmark-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Security</Text>
+            </View>
+            <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
+          </TouchableOpacity>
+
+          {/* Progress Photos */}
+          <TouchableOpacity
+            style={[ps.settingRow, ps.infoRowLast, { borderBottomColor: palette.border }]}
+            onPress={() => navigation.navigate('ProgressPhotos')}
+            activeOpacity={0.7}
+          >
+            <View style={ps.settingLeft}>
+              <Icon name="camera-outline" size={18} color={palette.textSecondary} />
+              <Text style={[ps.settingLabel, { color: palette.textPrimary }]}>Progress Photos</Text>
             </View>
             <Icon name="chevron-forward" size={16} color={palette.textTertiary} />
           </TouchableOpacity>
@@ -602,6 +689,19 @@ const ps = StyleSheet.create({
   safe: { flex: 1 },
 
   scroll: { padding: SPACING.md, paddingBottom: 60 },
+
+  // Pro card
+  proCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: RADIUS.lg, borderWidth: 1,
+    padding: 14, marginBottom: SPACING.md,
+  },
+  proBadge: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  proTitle: { fontSize: 15, fontWeight: '700' },
+  proSub: { fontSize: 12, marginTop: 1 },
 
   // Avatar
   avatarBlock: {
