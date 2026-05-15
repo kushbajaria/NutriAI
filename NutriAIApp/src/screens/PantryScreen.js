@@ -133,7 +133,7 @@ export default function PantryScreen({ navigation }) {
           {/* Generate CTA */}
           <GradientButton
             label="Generate Meals from Pantry"
-            onPress={() => navigation.navigate('Meals')}
+            onPress={() => navigation.navigate('MealsTab', { screen: 'MealsList' })}
             style={{ marginTop: SPACING.sm }}
           />
 

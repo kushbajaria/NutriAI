@@ -298,7 +298,7 @@ export function RecipeScreen({ navigation, route }) {
   const confirmLog = (mealTime) => {
     setShowMealTimePicker(false);
     logMeal(r, mealTime);
-    navigation.navigate('Main');
+    navigation.popToTop();
   };
 
   const handleSubmitReview = () => {

@@ -387,7 +387,7 @@ export default function DashboardScreen({ navigation }) {
           <Text style={[ds.headerGreet, { color: palette.textPrimary }]}>{greeting}, {firstName}!</Text>
           <StreakInline streakData={streakData} />
         </View>
-        <TouchableOpacity style={[ds.avatar, { backgroundColor: accent.primary }]} onPress={() => navigation.navigate('Profile')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Profile">
+        <TouchableOpacity style={[ds.avatar, { backgroundColor: accent.primary }]} onPress={() => navigation.navigate('ProfileTab', { screen: 'ProfileMain' })} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Profile">
           {profile?.profilePhoto ? (
             <Image source={{ uri: profile.profilePhoto }} style={ds.avatarImg} />
           ) : (
@@ -457,7 +457,7 @@ export default function DashboardScreen({ navigation }) {
                   </View>
                   <TouchableOpacity
                     style={[ds.mealTimeAdd, { backgroundColor: accent.primary + '15' }]}
-                    onPress={() => navigation.navigate('Meals')}
+                    onPress={() => navigation.navigate('MealsTab', { screen: 'MealsList' })}
                     activeOpacity={0.7}
                     accessibilityLabel={`Add ${slot.label}`}
                   >
@@ -527,9 +527,9 @@ export default function DashboardScreen({ navigation }) {
         <FadeIn delay={210}>
           <SectionHeader title="Quick Access" style={{ marginTop: SPACING.md }} />
           <View style={ds.qaGrid}>
-            <QuickCard icon="basket-outline" label="Pantry" sub={`${pantry.length} items`} color={accent.carbs} onPress={() => navigation.navigate('Pantry')} />
-            <QuickCard icon="restaurant-outline" label="Meals" sub={`${loggedMeals.length} logged`} color={accent.primary} onPress={() => navigation.navigate('Meals')} />
-            <QuickCard icon="barbell-outline" label="Workout" sub={`${todaysWorkoutCount} done today`} color={accent.protein} onPress={() => navigation.navigate('Workout')} />
+            <QuickCard icon="basket-outline" label="Pantry" sub={`${pantry.length} items`} color={accent.carbs} onPress={() => navigation.navigate('ProfileTab', { screen: 'Pantry' })} />
+            <QuickCard icon="restaurant-outline" label="Meals" sub={`${loggedMeals.length} logged`} color={accent.primary} onPress={() => navigation.navigate('MealsTab', { screen: 'MealsList' })} />
+            <QuickCard icon="barbell-outline" label="Workout" sub={`${todaysWorkoutCount} done today`} color={accent.protein} onPress={() => navigation.navigate('FitnessTab', { screen: 'WorkoutMain' })} />
           </View>
         </FadeIn>
 
@@ -541,12 +541,12 @@ export default function DashboardScreen({ navigation }) {
 
         {/* Suggested meal */}
         <FadeIn delay={330}>
-          <SectionHeader title="Suggested Meal" action="See All" onAction={() => navigation.navigate('Meals')} />
+          <SectionHeader title="Suggested Meal" action="See All" onAction={() => navigation.navigate('MealsTab', { screen: 'MealsList' })} />
           {pantryMeals.slice(0, 1).map(r => (
             <TouchableOpacity
               key={r.id}
               style={[ds.suggestCard, { backgroundColor: palette.bg1, borderColor: palette.border }]}
-              onPress={() => navigation.navigate('Recipe', { recipe: r })}
+              onPress={() => navigation.navigate('MealsTab', { screen: 'Recipe', params: { recipe: r } })}
               activeOpacity={0.8}
             >
               <View style={[ds.suggestLeft, { backgroundColor: palette.bg3 }]}>
@@ -569,7 +569,7 @@ export default function DashboardScreen({ navigation }) {
       {/* Floating action button */}
       <TouchableOpacity
         style={[ds.fab, { backgroundColor: accent.primary }]}
-        onPress={() => navigation.navigate('Meals')}
+        onPress={() => navigation.navigate('MealsTab', { screen: 'MealsList' })}
         activeOpacity={0.85}
         accessibilityRole="button"
         accessibilityLabel="Log a meal"
