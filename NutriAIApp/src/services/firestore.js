@@ -202,6 +202,30 @@ export async function getAllRecipes() {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+export async function getRecipeById(recipeId) {
+  const doc = await db.collection('recipes').doc(recipeId).get();
+  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+}
+
+export async function getRecipesByFilter({ tag, category, premium } = {}) {
+  let query = db.collection('recipes');
+  if (tag) query = query.where('tag', '==', tag);
+  if (category) query = query.where('category', '==', category);
+  if (typeof premium === 'boolean') query = query.where('premium', '==', premium);
+  const snapshot = await query.get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export function searchRecipes(query, recipes) {
+  if (!query || !recipes?.length) return recipes || [];
+  const q = query.toLowerCase();
+  return recipes.filter(r =>
+    r.name?.toLowerCase().includes(q) ||
+    r.tag?.toLowerCase().includes(q) ||
+    r.ingredients?.some(ing => ing.toLowerCase().includes(q))
+  );
+}
+
 export async function getRecipeReviews(recipeId) {
   const snapshot = await db.collection('recipes').doc(recipeId)
     .collection('reviews').orderBy('createdAt', 'desc').get();
