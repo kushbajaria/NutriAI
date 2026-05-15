@@ -11,6 +11,7 @@ import {
   logWorkoutToFirestore,
   subscribeWorkouts,
   getAllRecipes,
+  getRecipeReviews,
   updateUserProfile,
   addReviewToFirestore,
   addWaterEntry,
@@ -20,7 +21,6 @@ import {
 import { cacheRecipes, getCachedRecipes, cacheUserData, getCachedUserData } from '../services/cache';
 import { hapticSuccess, hapticMedium, hapticSelection } from '../utils/haptics';
 import { initHealthKit, isHealthKitAvailable, writeMealToHealthKit, writeWorkoutToHealthKit, getTodaySteps, getTodayActiveCalories } from '../services/healthkit';
-import { RECIPES as FALLBACK_RECIPES, MOCK_REVIEWS } from '../constants/data';
 import analytics from '@react-native-firebase/analytics';
 import functions from '@react-native-firebase/functions';
 
@@ -133,9 +133,10 @@ export function DataProvider({ children }) {
   const [loggedMeals, setLoggedMeals] = useState([]);
   const [streakData, setStreakData]    = useState({ count: 0, activityDates: [], earnedToday: false });
   const [completedWorkouts, setCompletedWorkouts] = useState([]);
-  const [recipes, setRecipes]      = useState(FALLBACK_RECIPES);
+  const [recipes, setRecipes]      = useState([]);
   const [recipesLoaded, setRecipesLoaded] = useState(false);
-  const [reviews, setReviews]      = useState(MOCK_REVIEWS || {});
+  const [recipesError, setRecipesError] = useState(false);
+  const [reviews, setReviews]      = useState({});
   const [calGoalOverride, setCalGoalOverride] = useState(null);
   const [waterData, setWaterData] = useState({ totalOz: 0, entries: [], glasses: 0 });
   const [healthKitEnabled, setHealthKitEnabled] = useState(false);
@@ -186,31 +187,40 @@ export function DataProvider({ children }) {
   }, [profile]);
 
   // Load recipes (cache-first, then Firestore)
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      // Try cache first
-      const cached = await getCachedRecipes();
-      if (cached && cached.length > 0 && mounted) {
-        setRecipes(cached);
-        setRecipesLoaded(true);
-      }
+  const loadRecipes = useCallback(async (mounted = { current: true }) => {
+    setRecipesError(false);
+    // Try cache first
+    const cached = await getCachedRecipes();
+    if (cached && cached.length > 0 && mounted.current) {
+      setRecipes(cached);
+      setRecipesLoaded(true);
+    }
 
-      // Then fetch from Firestore
-      try {
-        const fresh = await getAllRecipes();
-        if (fresh.length > 0 && mounted) {
-          setRecipes(fresh);
-          setRecipesLoaded(true);
-          await cacheRecipes(fresh);
-        }
-      } catch (err) {
-        console.warn('Failed to fetch recipes from Firestore, using fallback:', err.message);
-        // If no cache either, FALLBACK_RECIPES already set
+    // Then fetch from Firestore
+    try {
+      const fresh = await getAllRecipes();
+      if (fresh.length > 0 && mounted.current) {
+        setRecipes(fresh);
+        setRecipesLoaded(true);
+        await cacheRecipes(fresh);
+      } else if (!cached?.length && mounted.current) {
+        setRecipesError(true);
       }
-    })();
-    return () => { mounted = false; };
+    } catch (err) {
+      console.warn('Failed to fetch recipes from Firestore:', err.message);
+      if (!cached?.length && mounted.current) {
+        setRecipesError(true);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    const mounted = { current: true };
+    loadRecipes(mounted);
+    return () => { mounted.current = false; };
+  }, [loadRecipes]);
+
+  const refreshRecipes = useCallback(() => loadRecipes({ current: true }), [loadRecipes]);
 
   // Subscribe to Firestore data when authenticated
   useEffect(() => {
@@ -371,6 +381,25 @@ export function DataProvider({ children }) {
       showToast('Failed to log meal. Try again.');
     }
   }, [user?.uid, showToast, recordActivity, healthKitEnabled]);
+
+  const loadReviewsForRecipe = useCallback(async (recipeId) => {
+    try {
+      const fetched = await getRecipeReviews(recipeId);
+      const formatted = fetched.map(r => ({
+        id: r.id,
+        user: r.uid?.slice(0, 6) || 'User',
+        avatar: (r.uid?.[0] || 'U').toUpperCase(),
+        stars: r.stars,
+        text: r.text,
+        date: r.createdAt?.toDate?.()
+          ? r.createdAt.toDate().toLocaleDateString()
+          : 'Recently',
+      }));
+      setReviews(prev => ({ ...prev, [recipeId]: formatted }));
+    } catch (err) {
+      console.warn('Failed to load reviews:', err.message);
+    }
+  }, []);
 
   const addReview = useCallback(async (recipeId, stars, text) => {
     const displayName = user?.displayName || 'You';
@@ -536,8 +565,8 @@ export function DataProvider({ children }) {
       calGoal, setCalGoal, macroGoals,
       streakData, recordActivity,
       completedWorkouts, logWorkout,
-      recipes, recipesLoaded,
-      reviews, addReview,
+      recipes, recipesLoaded, recipesError, refreshRecipes,
+      reviews, addReview, loadReviewsForRecipe,
       pantryMeals,
       waterData, waterGoalOz, addWater, removeWater,
       healthKitEnabled, todaySteps, todayActiveCal,
