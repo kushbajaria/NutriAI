@@ -262,7 +262,10 @@ exports.exportMyData = onCall(
 );
 
 // ── REVENUECAT SUBSCRIPTION WEBHOOK ─────────────────────────────────
+const { seedRecipesAndReviews } = require("./seed");
+
 const rcWebhookSecret = defineSecret("REVENUECAT_WEBHOOK_SECRET");
+const seedSecret = defineSecret("SEED_SECRET");
 
 exports.handleSubscriptionWebhook = onRequest(
   { secrets: [rcWebhookSecret] },
@@ -354,6 +357,51 @@ exports.handleSubscriptionWebhook = onRequest(
       res.status(200).send("OK");
     } catch (error) {
       console.error("[Webhook] Error:", error);
+      res.status(500).send("Internal Server Error");
+    }
+  },
+);
+
+// ── SEED RECIPES (callable — admin UID allowlist) ──────────────────
+const ADMIN_UIDS = [
+  // Add your Firebase Auth UID here to authorize seeding
+];
+
+exports.seedRecipes = onCall(
+  { enforceAppCheck: false },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be signed in");
+    }
+    if (!ADMIN_UIDS.includes(request.auth.uid)) {
+      throw new HttpsError("permission-denied", "Admin access required");
+    }
+
+    const result = await seedRecipesAndReviews(db);
+    return result;
+  },
+);
+
+// ── SEED RECIPES (HTTP — secret-gated for curl/CI) ─────────────────
+exports.seedRecipesHttp = onRequest(
+  { secrets: [seedSecret] },
+  async (req, res) => {
+    if (req.method !== "POST") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${seedSecret.value()}`) {
+      res.status(401).send("Unauthorized");
+      return;
+    }
+
+    try {
+      const result = await seedRecipesAndReviews(db);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("[Seed] Error:", error);
       res.status(500).send("Internal Server Error");
     }
   },
