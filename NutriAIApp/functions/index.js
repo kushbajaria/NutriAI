@@ -136,6 +136,15 @@ exports.cleanupOrphanedData = onSchedule(
               await batch.commit();
             }
           }
+          // Clean up AI chat messages (nested subcollection)
+          const chatDoc = doc.ref.collection("aiChats").doc("current");
+          const msgSnap = await chatDoc.collection("messages").limit(500).get();
+          if (!msgSnap.empty) {
+            const batch = db.batch();
+            msgSnap.docs.forEach((d) => batch.delete(d.ref));
+            await batch.commit();
+          }
+          await chatDoc.delete().catch(() => {});
           await doc.ref.delete();
           cleaned++;
           console.log(`Cleaned orphaned user: ${doc.id}`);
