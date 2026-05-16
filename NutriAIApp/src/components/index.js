@@ -28,3 +28,6 @@ export {
 } from './UI';
 export { default as Icon } from './Icon';
 export { default as ErrorBoundary } from './ErrorBoundary';
+
+// ── Charts ──────────────────────────────────────────────────────
+export { LineChart, BarChart } from './charts';
