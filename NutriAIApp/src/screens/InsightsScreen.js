@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { GlassCard, GradientButton, BlurHeader, Skeleton } from '../components';
+import { GlassCard, GradientButton, BlurHeader } from '../components';
 import Icon from '../components/Icon';
 import { SPACING, RADIUS } from '../constants/theme';
 import functions from '@react-native-firebase/functions';
