@@ -593,7 +593,7 @@ const ds = StyleSheet.create({
     paddingHorizontal: SPACING.md, paddingTop: SPACING.sm, paddingBottom: SPACING.md,
     borderBottomWidth: 1,
   },
-  headerDate:  { fontSize: 9, fontWeight: '700', letterSpacing: 1.8, marginBottom: 3 },
+  headerDate:  { fontSize: 11, fontWeight: '700', letterSpacing: 1.8, marginBottom: 3 },
   headerGreet: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   avatar: {
     width: 42, height: 42, borderRadius: 21,
@@ -613,7 +613,7 @@ const ds = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   goalText:   { fontSize: 13, fontWeight: '600', flex: 1 },
-  goalStatus: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  goalStatus: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
   // Hero card
   heroCard: {
@@ -662,7 +662,7 @@ const ds = StyleSheet.create({
   activityItem: { flex: 1, alignItems: 'center', gap: 4 },
   activityDivider: { width: 1, height: 40 },
   activityVal: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
-  activityLabel: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  activityLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5 },
 
   // Quick actions
   qaGrid: { flexDirection: 'row', gap: 10, marginBottom: SPACING.lg },
@@ -679,12 +679,12 @@ const ds = StyleSheet.create({
   weekStats: { flexDirection: 'row', marginBottom: SPACING.sm },
   weekStat:  { flex: 1, alignItems: 'center' },
   weekStatVal: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  weekStatLbl: { fontSize: 9, fontWeight: '600', marginTop: 2, letterSpacing: 0.5 },
+  weekStatLbl: { fontSize: 11, fontWeight: '600', marginTop: 2, letterSpacing: 0.5 },
   weekDivider: { height: 1, marginBottom: SPACING.sm },
   barChart: { flexDirection: 'row', gap: 6, alignItems: 'flex-end', height: 52 },
   barWrap:  { flex: 1, alignItems: 'center', gap: 5 },
   bar:      { width: '100%', borderRadius: 4, minHeight: 4 },
-  barDay:   { fontSize: 9, fontWeight: '600' },
+  barDay:   { fontSize: 11, fontWeight: '600' },
   weekSelectedLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center', marginBottom: 4 },
 
   // Suggest card
@@ -738,7 +738,7 @@ const ds = StyleSheet.create({
     minWidth: 180,
   },
   celebStar:     { fontSize: 52, marginBottom: 4 },
-  celebDayLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 3 },
+  celebDayLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 3 },
   celebCount:    { fontSize: 72, fontWeight: '900', letterSpacing: -3, lineHeight: 76 },
   celebSub:      { fontSize: 15, fontWeight: '600' },
 

@@ -114,7 +114,8 @@ const styles = StyleSheet.create({
   btn: {
     borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.lg,
-    paddingVertical: 15,
+    paddingVertical: 16,
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -123,7 +124,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   text: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.1,
   },

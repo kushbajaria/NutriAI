@@ -272,7 +272,7 @@ const s = StyleSheet.create({
   adherenceRow: { flexDirection: 'row', gap: 24 },
   adherenceItem: { alignItems: 'center', gap: 2 },
   adherenceVal: { fontSize: 22, fontWeight: '800' },
-  adherenceLabel: { fontSize: 11, fontWeight: '600' },
+  adherenceLabel: { fontSize: 13, fontWeight: '600' },
 
   // List items
   listItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },

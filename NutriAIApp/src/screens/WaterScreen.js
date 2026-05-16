@@ -208,7 +208,7 @@ const s = StyleSheet.create({
     paddingVertical: 14, borderWidth: 1,
   },
   sizeName: { fontSize: 12, fontWeight: '700' },
-  sizeVol: { fontSize: 10, fontWeight: '600' },
+  sizeVol: { fontSize: 12, fontWeight: '600' },
 
   // Undo
   undoBtn: {
@@ -222,10 +222,10 @@ const s = StyleSheet.create({
   weekChart: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', height: 90 },
   weekBarWrap: { flex: 1, alignItems: 'center', gap: 6 },
   weekBar: { width: '100%', borderRadius: 5, minHeight: 4 },
-  weekLabel: { fontSize: 10, fontWeight: '600' },
+  weekLabel: { fontSize: 11, fontWeight: '600' },
   goalLineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
   goalLine: { flex: 1, height: 1 },
-  goalLineText: { fontSize: 10, fontWeight: '600' },
+  goalLineText: { fontSize: 11, fontWeight: '600' },
 
   // Entries
   entryRow: {

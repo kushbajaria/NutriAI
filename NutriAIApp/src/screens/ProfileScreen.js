@@ -730,7 +730,7 @@ const ps = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 6,
     borderWidth: 1,
   },
-  memberText: { fontSize: 9, fontWeight: '800', letterSpacing: 1.8 },
+  memberText: { fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: SPACING.lg },
@@ -739,7 +739,7 @@ const ps = StyleSheet.create({
     padding: SPACING.md, alignItems: 'center', borderWidth: 1,
   },
   statVal: { fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-  statLbl: { fontSize: 10, fontWeight: '600', marginTop: 3, letterSpacing: 0.3 },
+  statLbl: { fontSize: 12, fontWeight: '600', marginTop: 3, letterSpacing: 0.3 },
 
   // Info block
   infoBlock: {
@@ -768,8 +768,8 @@ const ps = StyleSheet.create({
 
   // Unit toggle chips
   unitToggle:       { flexDirection: 'row', gap: 4 },
-  unitChip:         { paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.full, borderWidth: 1 },
-  unitChipText:     { fontSize: 12, fontWeight: '600' },
+  unitChip:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.full, borderWidth: 1 },
+  unitChipText:     { fontSize: 13, fontWeight: '600' },
 
   // Sign out
   signOutBtn: {

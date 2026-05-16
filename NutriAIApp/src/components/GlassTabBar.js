@@ -106,11 +106,11 @@ const styles = StyleSheet.create({
     ...SHADOW.md,
   },
   label: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
   },
   labelCenter: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: '#A78BFA',
   },

@@ -113,7 +113,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   planName: { fontSize: 22, fontWeight: '900', letterSpacing: -0.3, marginBottom: 8 },
-  statusPill: { borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 5, marginBottom: 8 },
+  statusPill: { borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 8 },
   statusText: { fontSize: 13, fontWeight: '700' },
   expiresText: { fontSize: 12 },
 

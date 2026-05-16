@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   subtitle: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.8,
     marginBottom: 1,

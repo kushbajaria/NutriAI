@@ -269,7 +269,7 @@ const s = StyleSheet.create({
   },
   logoMarkText: { fontSize: 24, fontWeight: '900' },
   logoName:    { fontSize: 19, fontWeight: '800', letterSpacing: -0.5 },
-  logoTagline: { fontSize: 9, fontWeight: '700', letterSpacing: 2 },
+  logoTagline: { fontSize: 11, fontWeight: '700', letterSpacing: 2 },
 
   // Hero
   hero: { marginBottom: SPACING.xl },
@@ -301,7 +301,7 @@ const s = StyleSheet.create({
   // Form
   form: { gap: SPACING.md, marginBottom: SPACING.lg },
   fieldWrap: { gap: 7 },
-  fieldLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.8 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.8 },
   fieldLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   forgotText: { fontSize: 12, fontWeight: '600' },
   input: {
@@ -313,7 +313,7 @@ const s = StyleSheet.create({
   // OR
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: SPACING.sm },
   orLine: { flex: 1, height: 1 },
-  orText: { fontSize: 10, fontWeight: '700', letterSpacing: 1.2 },
+  orText: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
 
   // Apple (brand compliance: always white bg, black text)
   appleBtn: {

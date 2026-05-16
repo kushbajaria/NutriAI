@@ -239,9 +239,9 @@ const s = StyleSheet.create({
   planBadge: {
     position: 'absolute', top: 0, right: 0,
     borderBottomLeftRadius: RADIUS.md,
-    paddingHorizontal: 10, paddingVertical: 4,
+    paddingHorizontal: 12, paddingVertical: 6,
   },
-  planBadgeText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+  planBadgeText: { fontSize: 12, fontWeight: '800', color: '#FFFFFF' },
   planContent: { flex: 1 },
   planLabel: { fontSize: 14, fontWeight: '700' },
   planPrice: { fontSize: 20, fontWeight: '900', marginTop: 2 },
@@ -258,5 +258,5 @@ const s = StyleSheet.create({
   restoreText: { fontSize: 13, fontWeight: '600' },
 
   // Legal
-  legal: { fontSize: 10, textAlign: 'center', lineHeight: 14, marginTop: 16, paddingHorizontal: 8 },
+  legal: { fontSize: 11, textAlign: 'center', lineHeight: 16, marginTop: 16, paddingHorizontal: 8 },
 });

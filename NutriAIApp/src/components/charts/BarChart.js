@@ -130,5 +130,5 @@ export default function BarChart({
 const s = StyleSheet.create({
   container: { width: '100%' },
   xLabels: { position: 'relative', height: 16, marginTop: -20 },
-  xLabel: { position: 'absolute', fontSize: 10, color: '#888', width: 28, textAlign: 'center' },
+  xLabel: { position: 'absolute', fontSize: 11, color: '#888', width: 30, textAlign: 'center' },
 });

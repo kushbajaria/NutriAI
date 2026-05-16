@@ -179,7 +179,7 @@ const s = StyleSheet.create({
   headerTitle: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   calBadge:    { borderRadius: RADIUS.md, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, alignItems: 'center', marginTop: 4 },
   calBadgeVal: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
-  calBadgeLbl: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  calBadgeLbl: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
 
   scroll:        { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
@@ -197,7 +197,7 @@ const s = StyleSheet.create({
     borderWidth: 1, gap: 4,
   },
   typeLabel:      { fontSize: 13, fontWeight: '700' },
-  typeDesc:       { fontSize: 10, fontWeight: '500' },
+  typeDesc:       { fontSize: 12, fontWeight: '500' },
   typeActiveDot:  { width: 5, height: 5, borderRadius: 3, marginTop: 4 },
 
   // Duration
@@ -231,12 +231,12 @@ const s = StyleSheet.create({
   exMuscle:  { fontSize: 11 },
   exRight:   { alignItems: 'flex-end' },
   exSets:    { fontSize: 14, fontWeight: '800' },
-  exRest:    { fontSize: 10, marginTop: 2 },
+  exRest:    { fontSize: 12, marginTop: 2 },
 
   // Insight card
   insightCard:      { borderWidth: 1 },
   insightHeader:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  insightLabel:     { fontSize: 9, fontWeight: '800', letterSpacing: 2 },
+  insightLabel:     { fontSize: 11, fontWeight: '800', letterSpacing: 2 },
   insightBody:      { fontSize: 14, lineHeight: 23 },
   insightHighlight: { fontWeight: '700' },
 });

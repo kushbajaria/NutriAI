@@ -547,10 +547,10 @@ const s = StyleSheet.create({
   headerBadges: { gap: 6, alignItems: 'flex-end', marginTop: 4 },
   infoBadge: {
     borderRadius: RADIUS.full,
-    paddingHorizontal: 10, paddingVertical: 5,
+    paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1,
   },
-  infoBadgeText: { fontSize: 11, fontWeight: '600' },
+  infoBadgeText: { fontSize: 12, fontWeight: '600' },
 
   scroll:        { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
@@ -569,18 +569,18 @@ const s = StyleSheet.create({
   diffText:        { fontSize: 11, fontWeight: '600' },
   recipeName:      { fontSize: 18, fontWeight: '800', letterSpacing: -0.4 },
   metaRow:         { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  metaChip:        { borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1 },
-  metaChipText:    { fontSize: 11, fontWeight: '600' },
+  metaChip:        { borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
+  metaChipText:    { fontSize: 12, fontWeight: '600' },
   macroSection:    { gap: 5, paddingTop: 2 },
   macroBarRow:     { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  macroBarLabel:   { fontSize: 9, fontWeight: '700', width: 12 },
+  macroBarLabel:   { fontSize: 11, fontWeight: '700', width: 14 },
   macroBarTrack:   { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden' },
   macroBarFill:    { height: 4, borderRadius: 2 },
-  macroBarVal:     { fontSize: 10, fontWeight: '700', width: 32, textAlign: 'right' },
+  macroBarVal:     { fontSize: 12, fontWeight: '700', width: 36, textAlign: 'right' },
 
   missingRow:   { flexDirection: 'row', alignItems: 'center' },
-  missingLabel: { fontSize: 11, fontWeight: '600' },
-  missingItems: { fontSize: 11, fontWeight: '500', flex: 1 },
+  missingLabel: { fontSize: 12, fontWeight: '600' },
+  missingItems: { fontSize: 12, fontWeight: '500', flex: 1 },
 
   cardFooter:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, paddingTop: 10 },
   footerServings: { fontSize: 12, fontWeight: '500' },
@@ -633,7 +633,7 @@ const rs = StyleSheet.create({
   avgCount:      { fontSize: 11 },
 
   body:         { padding: SPACING.md },
-  sectionLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.8, marginBottom: 10, marginTop: 4 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.8, marginBottom: 10, marginTop: 4 },
 
   // Match banner
   matchBanner: {
@@ -650,7 +650,7 @@ const rs = StyleSheet.create({
   nutriCard: { flex: 1, borderRadius: RADIUS.md, padding: 12, alignItems: 'center', borderWidth: 1 },
   nutriVal:  { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
   nutriUnit: { fontSize: 12, fontWeight: '700' },
-  nutriLabel:{ fontSize: 10, fontWeight: '600', marginTop: 3 },
+  nutriLabel:{ fontSize: 12, fontWeight: '600', marginTop: 3 },
 
   ingRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: SPACING.lg },
   ingChip: {
@@ -658,7 +658,7 @@ const rs = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 8,
   },
-  ingMissingDot:  { fontSize: 9, fontWeight: '900' },
+  ingMissingDot:  { fontSize: 11, fontWeight: '900' },
   ingText:        { fontSize: 13, fontWeight: '500' },
 
   steps:       { gap: 10, marginBottom: SPACING.lg },

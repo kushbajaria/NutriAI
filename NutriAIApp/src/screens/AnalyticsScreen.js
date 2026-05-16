@@ -382,12 +382,12 @@ const s = StyleSheet.create({
   chartCard: { marginBottom: SPACING.md },
   chartTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12 },
   chartTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  chartBadge: { fontSize: 13, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: RADIUS.sm, overflow: 'hidden' },
+  chartBadge: { fontSize: 13, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.sm, overflow: 'hidden' },
 
   // Legend
   legendRow: { flexDirection: 'row', gap: 16, marginTop: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendDash: { width: 12, height: 0, borderTopWidth: 2, borderStyle: 'dashed' },
-  legendText: { fontSize: 11, fontWeight: '600' },
+  legendText: { fontSize: 12, fontWeight: '600' },
 });

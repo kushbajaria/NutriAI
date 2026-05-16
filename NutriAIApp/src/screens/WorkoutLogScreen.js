@@ -231,7 +231,7 @@ const s = StyleSheet.create({
   summaryRow: { flexDirection: 'row' },
   summaryItem: { flex: 1, alignItems: 'center', gap: 4 },
   summaryVal: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  summaryItemLbl: { fontSize: 9, fontWeight: '600' },
+  summaryItemLbl: { fontSize: 11, fontWeight: '600' },
 
   // Date headers
   dateHeader: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.sm, marginTop: SPACING.xs },
@@ -251,10 +251,10 @@ const s = StyleSheet.create({
   entryTime: { fontSize: 12, marginTop: 2 },
   partialBadge: {
     borderRadius: RADIUS.full,
-    paddingHorizontal: 8, paddingVertical: 3,
+    paddingHorizontal: 10, paddingVertical: 5,
     borderWidth: 1,
   },
-  partialText: { fontSize: 11, fontWeight: '700' },
+  partialText: { fontSize: 12, fontWeight: '700' },
 
   // Stats
   entryStats: {
@@ -264,7 +264,7 @@ const s = StyleSheet.create({
   },
   entryStat: { flex: 1, alignItems: 'center', gap: 3 },
   entryStatVal: { fontSize: 15, fontWeight: '800' },
-  entryStatLbl: { fontSize: 9, fontWeight: '600' },
+  entryStatLbl: { fontSize: 11, fontWeight: '600' },
 
   // Exercise detail list
   exList: {
@@ -282,9 +282,9 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1,
   },
-  exNumText: { fontSize: 10, fontWeight: '800' },
+  exNumText: { fontSize: 11, fontWeight: '800' },
   exName: { fontSize: 13, fontWeight: '700' },
-  exMuscle: { fontSize: 10, marginTop: 1 },
+  exMuscle: { fontSize: 12, marginTop: 1 },
   exSets: { fontSize: 13, fontWeight: '800' },
   noExText: { fontSize: 12, textAlign: 'center', paddingVertical: 8 },
 

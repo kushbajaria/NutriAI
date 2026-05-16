@@ -300,7 +300,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   statVal: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  statLbl: { fontSize: 10, fontWeight: '600' },
+  statLbl: { fontSize: 12, fontWeight: '600' },
 
   // Macros
   macroRows: { gap: 10 },

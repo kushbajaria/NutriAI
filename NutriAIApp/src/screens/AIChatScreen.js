@@ -278,13 +278,13 @@ const s = StyleSheet.create({
   welcomeCard: { alignItems: 'center', marginBottom: SPACING.lg },
   welcomeTitle: { fontSize: 18, fontWeight: '800', marginBottom: 6 },
   welcomeSub: { fontSize: 14, textAlign: 'center', lineHeight: 20, paddingHorizontal: 8 },
-  suggestLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 },
+  suggestLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 },
   suggestWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    paddingHorizontal: 14, paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 12,
     borderRadius: RADIUS.full, borderWidth: 1,
   },
-  chipText: { fontSize: 13, fontWeight: '600' },
+  chipText: { fontSize: 14, fontWeight: '600' },
 
   // Message list
   listContent: { padding: SPACING.md, paddingBottom: 8 },

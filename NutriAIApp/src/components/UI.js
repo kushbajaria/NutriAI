@@ -299,8 +299,8 @@ const styles = StyleSheet.create({
   pillBtnTextDanger: { color: C.red },
 
   // Badge
-  badge: { borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  badgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  badge: { borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1 },
+  badgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
 
   // Progress
   progressTrack: { backgroundColor: C.surface3, borderRadius: RADIUS.full, overflow: 'hidden', width: '100%' },
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   macroChipDot: { width: 5, height: 5, borderRadius: 3, marginBottom: 2 },
   macroChipVal: { fontSize: 19, fontWeight: '800', letterSpacing: -0.5 },
   macroChipUnit: { fontSize: 11, fontWeight: '600' },
-  macroChipLabel: { fontSize: 10, color: C.textTertiary, fontWeight: '600' },
+  macroChipLabel: { fontSize: 11, color: C.textTertiary, fontWeight: '600' },
 
   // Card
   card: { backgroundColor: C.surface1, borderRadius: RADIUS.lg, padding: SPACING.md, borderWidth: 1, borderColor: C.border },
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   // Screen Header
   screenHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: C.border },
   screenHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  screenHeaderSub: { fontSize: 9, color: C.accent, fontWeight: '700', letterSpacing: 1.8, marginBottom: 1 },
+  screenHeaderSub: { fontSize: 11, color: C.accent, fontWeight: '700', letterSpacing: 1.8, marginBottom: 1 },
   screenHeaderTitle: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: -0.5 },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.borderHi, alignItems: 'center', justifyContent: 'center' },
   backBtnText: { fontSize: 18, color: C.accent, marginTop: -1 },
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   statPill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.surface2, borderRadius: RADIUS.full, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1 },
   statPillIcon: { fontSize: 16 },
   statPillValue: { fontSize: 14, fontWeight: '800', letterSpacing: -0.3 },
-  statPillLabel: { fontSize: 10, color: C.textTertiary, fontWeight: '600' },
+  statPillLabel: { fontSize: 11, color: C.textTertiary, fontWeight: '600' },
 
   // Toast — clean, no glow
   toast: { position: 'absolute', bottom: 110, alignSelf: 'center', backgroundColor: C.surface2, borderRadius: RADIUS.full, paddingHorizontal: 22, paddingVertical: 13, borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 999, ...SHADOW.sm },

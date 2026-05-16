@@ -470,7 +470,7 @@ const s = StyleSheet.create({
   exInfoRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   exInfoItem: { flex: 1, alignItems: 'center', gap: 4 },
   exInfoVal: { fontSize: 22, fontWeight: '900' },
-  exInfoLbl: { fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
+  exInfoLbl: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5 },
   exInfoDivider: { width: 1, height: 32 },
 
   // Set dots
@@ -487,7 +487,7 @@ const s = StyleSheet.create({
     padding: SPACING.md, borderWidth: 1,
     marginBottom: SPACING.md,
   },
-  upNextLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 },
+  upNextLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 },
   upNextName: { fontSize: 16, fontWeight: '800' },
   upNextMuscle: { fontSize: 12, marginTop: 2 },
 
@@ -499,7 +499,7 @@ const s = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: 'center', gap: 4 },
   statVal: { fontSize: 16, fontWeight: '800' },
-  statLbl: { fontSize: 9, fontWeight: '600' },
+  statLbl: { fontSize: 11, fontWeight: '600' },
 
   // Bottom bar
   bottomBar: {
@@ -567,7 +567,7 @@ const s = StyleSheet.create({
     paddingVertical: 14, borderWidth: 1,
   },
   summaryStatVal: { fontSize: 20, fontWeight: '900' },
-  summaryStatLbl: { fontSize: 10, fontWeight: '600' },
+  summaryStatLbl: { fontSize: 12, fontWeight: '600' },
   summaryPartial: { fontSize: 12, fontWeight: '600' },
 
   discardBtn: { paddingVertical: 10 },

@@ -74,6 +74,6 @@ const s = StyleSheet.create({
   programName: { fontSize: 15, fontWeight: '700' },
   programDuration: { fontSize: 12, marginTop: 1 },
   programDesc: { fontSize: 12, marginTop: 4, lineHeight: 16 },
-  freeBadge: { borderRadius: RADIUS.full, paddingHorizontal: 10, paddingVertical: 4 },
-  freeText: { fontSize: 11, fontWeight: '700' },
+  freeBadge: { borderRadius: RADIUS.full, paddingHorizontal: 12, paddingVertical: 6 },
+  freeText: { fontSize: 12, fontWeight: '700' },
 });

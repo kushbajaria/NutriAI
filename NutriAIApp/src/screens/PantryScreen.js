@@ -152,7 +152,7 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
   },
   eyebrowRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  eyebrow:     { fontSize: 9, fontWeight: '700', letterSpacing: 2 },
+  eyebrow:     { fontSize: 11, fontWeight: '700', letterSpacing: 2 },
   headerTitle: { fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   countBadge: {
     borderRadius: RADIUS.md,
@@ -161,7 +161,7 @@ const s = StyleSheet.create({
     alignItems: 'center', marginTop: 4,
   },
   countVal: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  countLbl: { fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  countLbl: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
 
   scroll:        { flex: 1 },
   scrollContent: { padding: SPACING.md, paddingBottom: 40 },
