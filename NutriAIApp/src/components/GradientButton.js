@@ -40,15 +40,16 @@ export default function GradientButton({
         accessibilityState={{ disabled: !!disabled }}
         style={[disabled && styles.disabled, style]}
       >
-        <LinearGradient
-          colors={colors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.btn, SHADOW.accent]}
-        >
+        <View style={[styles.btn, SHADOW.accent]}>
+          <LinearGradient
+            colors={colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradientFill}
+          />
           {icon && <Icon name={icon} size={18} color={palette.textInverse} style={styles.icon} />}
           <Text style={[styles.text, { color: palette.textInverse }]}>{label}</Text>
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
     );
   }
@@ -119,6 +120,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  gradientFill: {
+    ...StyleSheet.absoluteFillObject,
   },
   glassBg: {
     borderWidth: 1,
