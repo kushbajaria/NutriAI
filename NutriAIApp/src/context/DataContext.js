@@ -13,7 +13,6 @@ import {
   getAllRecipes,
   getRecipeReviews,
   updateUserProfile,
-  addReviewToFirestore,
   addWaterEntry,
   removeLastWaterEntry,
   subscribeWaterDay,
@@ -425,23 +424,13 @@ export function DataProvider({ children }) {
         const submitReview = functions().httpsCallable('submitReview');
         await submitReview({ recipeId, stars, text });
       } catch (err) {
-        // Fallback to direct write if Cloud Functions not deployed yet
-        if (err.code === 'functions/not-found' || err.code === 'functions/unavailable') {
-          try {
-            await addReviewToFirestore(recipeId, user.uid, { stars, text });
-          } catch (fallbackErr) {
-            console.warn('Failed to persist review:', fallbackErr.message);
-          }
-        } else {
-          // Show user-facing error from callable (rate limit, profanity, etc.)
-          const msg = err.message || 'Failed to post review';
-          showToast(msg);
-          // Remove optimistic review
-          setReviews(prev => ({
-            ...prev,
-            [recipeId]: (prev[recipeId] || []).filter(r => r.id !== newReview.id),
-          }));
-        }
+        const msg = err.message || 'Failed to post review';
+        showToast(msg);
+        // Remove optimistic review
+        setReviews(prev => ({
+          ...prev,
+          [recipeId]: (prev[recipeId] || []).filter(r => r.id !== newReview.id),
+        }));
       }
     }
   }, [user, showToast]);

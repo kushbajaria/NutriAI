@@ -4,9 +4,19 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const crypto = require("crypto");
 
 initializeApp();
 const db = getFirestore();
+
+// Timing-safe string comparison to prevent timing attacks
+function secureCompare(a, b) {
+  if (!a || !b || typeof a !== "string" || typeof b !== "string") return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 // ── PROFANITY FILTER (basic blocklist) ──────────────────────────────
 const BLOCKED_WORDS = [
@@ -168,7 +178,7 @@ exports.submitReview = onCall(
     const { recipeId, stars, text } = request.data;
 
     // Validate input
-    if (!recipeId || typeof recipeId !== "string") {
+    if (!recipeId || typeof recipeId !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(recipeId)) {
       throw new HttpsError("invalid-argument", "Invalid recipe ID");
     }
     if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
@@ -288,7 +298,7 @@ exports.handleSubscriptionWebhook = onRequest(
 
     // Verify authorization header
     const authHeader = req.headers.authorization;
-    if (!authHeader || authHeader !== `Bearer ${rcWebhookSecret.value()}`) {
+    if (!authHeader || !secureCompare(authHeader, `Bearer ${rcWebhookSecret.value()}`)) {
       res.status(401).send("Unauthorized");
       return;
     }
@@ -402,7 +412,7 @@ exports.seedRecipesHttp = onRequest(
     }
 
     const authHeader = req.headers.authorization;
-    if (!authHeader || authHeader !== `Bearer ${seedSecret.value()}`) {
+    if (!authHeader || !secureCompare(authHeader, `Bearer ${seedSecret.value()}`)) {
       res.status(401).send("Unauthorized");
       return;
     }
@@ -458,17 +468,23 @@ function calculateMacroGoals(calGoal, goal) {
   };
 }
 
+// Sanitize user-controlled strings before embedding in prompts
+function sanitizeForPrompt(str, maxLen = 100) {
+  if (!str || typeof str !== "string") return "";
+  return str.replace(/[<>{}[\]\\]/g, "").slice(0, maxLen).trim();
+}
+
 async function buildSystemPrompt(uid) {
   // Read user profile
   const userDoc = await db.collection("users").doc(uid).get();
   const profile = userDoc.exists ? userDoc.data() : {};
 
-  const goal = profile.goal || "Stay Healthy";
-  const age = profile.age || "";
-  const height = profile.height || "";
-  const weight = profile.weight || "";
-  const diet = profile.diet || "No Restrictions";
-  const units = profile.units || "Imperial";
+  const goal = sanitizeForPrompt(profile.goal || "Stay Healthy", 30);
+  const age = sanitizeForPrompt(profile.age || "", 5);
+  const height = sanitizeForPrompt(profile.height || "", 10);
+  const weight = sanitizeForPrompt(profile.weight || "", 10);
+  const diet = sanitizeForPrompt(profile.diet || "No Restrictions", 30);
+  const units = profile.units === "Metric" ? "Metric" : "Imperial";
   const calGoal = profile.calGoal || calculateTDEE(age, height, weight, units, goal);
   const macros = calculateMacroGoals(calGoal, goal);
 
@@ -485,7 +501,7 @@ async function buildSystemPrompt(uid) {
   const totalProtein = meals.reduce((a, m) => a + (m.protein || 0), 0);
   const totalCarbs = meals.reduce((a, m) => a + (m.carbs || 0), 0);
   const totalFat = meals.reduce((a, m) => a + (m.fat || 0), 0);
-  const mealList = meals.map((m) => `${m.name} (${m.cal} cal)`).join(", ") || "None yet";
+  const mealList = meals.map((m) => `${sanitizeForPrompt(m.name, 50)} (${Math.round(m.cal || 0)} cal)`).join(", ") || "None yet";
 
   // Read pantry
   const pantrySnap = await db
@@ -497,7 +513,9 @@ async function buildSystemPrompt(uid) {
     const pantryData = pantrySnap.docs[0].data();
     pantryItems = pantryData.items || [];
   }
-  const pantryList = pantryItems.length > 0 ? pantryItems.join(", ") : "Not set";
+  const pantryList = pantryItems.length > 0
+    ? pantryItems.slice(0, 30).map((i) => sanitizeForPrompt(String(i), 30)).join(", ")
+    : "Not set";
 
   const unitLabel = units === "Imperial" ? "in/lbs" : "cm/kg";
 
