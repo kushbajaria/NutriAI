@@ -240,6 +240,37 @@ export async function addReviewToFirestore(recipeId, uid, reviewData) {
   });
 }
 
+// ── Analytics Range Queries ──────────────────────────────────────
+
+export async function getMealsForRange(uid, startTimestamp, endTimestamp) {
+  const snapshot = await db
+    .collection('users').doc(uid).collection('meals')
+    .where('loggedAt', '>=', startTimestamp)
+    .where('loggedAt', '<=', endTimestamp)
+    .orderBy('loggedAt', 'asc')
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function getWorkoutsForRange(uid, startTimestamp, endTimestamp) {
+  const snapshot = await db
+    .collection('users').doc(uid).collection('workouts')
+    .where('completedAt', '>=', startTimestamp)
+    .where('completedAt', '<=', endTimestamp)
+    .orderBy('completedAt', 'asc')
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+export async function getWeightForRange(uid, startTimestamp) {
+  const snapshot = await db
+    .collection('users').doc(uid).collection('weightLog')
+    .where('timestamp', '>=', startTimestamp)
+    .orderBy('timestamp', 'asc')
+    .get();
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
 // ── Data Export (GDPR) ───────────────────────────────────────────
 
 export async function exportUserData(uid) {
