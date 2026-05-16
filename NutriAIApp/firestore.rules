@@ -138,6 +138,13 @@ service cloud.firestore {
           allow create, update, delete: if false;
         }
       }
+
+      // ── Insights (AI-generated weekly summaries) ────────────────
+      match /insights/{weekId} {
+        allow read: if isOwner(userId);
+        // Written server-only via Admin SDK
+        allow create, update, delete: if false;
+      }
     }
 
     // ── Recipes ─────────────────────────────────────────────────────

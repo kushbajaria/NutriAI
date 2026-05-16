@@ -320,7 +320,7 @@ export async function deleteUserData(uid) {
   const userRef = db.collection('users').doc(uid);
 
   // Delete subcollections in batches of 500 (Firestore batch limit)
-  const subcollections = ['pantry', 'meals', 'streaks', 'workouts', 'weightLog', 'water', 'aiChats'];
+  const subcollections = ['pantry', 'meals', 'streaks', 'workouts', 'weightLog', 'water', 'aiChats', 'insights'];
   for (const sub of subcollections) {
     let snapshot = await userRef.collection(sub).limit(500).get();
     while (snapshot.docs.length > 0) {

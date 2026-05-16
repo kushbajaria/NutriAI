@@ -126,7 +126,7 @@ exports.cleanupOrphanedData = onSchedule(
         if (err.code === "auth/user-not-found") {
           // Auth user doesn't exist — clean up Firestore data
           const subcollections = [
-            "pantry", "meals", "streaks", "workouts", "weightLog", "water",
+            "pantry", "meals", "streaks", "workouts", "weightLog", "water", "insights",
           ];
           for (const sub of subcollections) {
             const subSnap = await doc.ref.collection(sub).limit(500).get();
