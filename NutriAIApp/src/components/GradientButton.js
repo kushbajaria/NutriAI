@@ -29,6 +29,13 @@ export default function GradientButton({
   const { mode, palette, gradients, accent } = useTheme();
   const colors = gradient || gradients.primary;
 
+  const inner = (iconColor, textColor) => (
+    <View style={styles.inner}>
+      {icon && <Icon name={icon} size={18} color={iconColor} style={styles.icon} />}
+      <Text style={[styles.text, { color: textColor }]}>{label}</Text>
+    </View>
+  );
+
   if (variant === 'primary') {
     return (
       <TouchableOpacity
@@ -40,15 +47,15 @@ export default function GradientButton({
         accessibilityState={{ disabled: !!disabled }}
         style={[disabled && styles.disabled, style]}
       >
-        <View style={[styles.btn, SHADOW.accent]}>
+        <View style={[styles.btnWrap, SHADOW.accent]}>
           <LinearGradient
             colors={colors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={styles.gradientFill}
-          />
-          {icon && <Icon name={icon} size={18} color={palette.textInverse} style={styles.icon} />}
-          <Text style={[styles.text, { color: palette.textInverse }]}>{label}</Text>
+            style={styles.gradient}
+          >
+            {inner(palette.textInverse, palette.textInverse)}
+          </LinearGradient>
         </View>
       </TouchableOpacity>
     );
@@ -66,8 +73,7 @@ export default function GradientButton({
         style={[disabled && styles.disabled, style]}
       >
         <View style={[styles.btn, styles.glassBg, { borderColor: palette.glass2Border, backgroundColor: palette.glass2Bg }]}>
-          {icon && <Icon name={icon} size={18} color={accent.primary} style={styles.icon} />}
-          <Text style={[styles.text, { color: palette.textPrimary }]}>{label}</Text>
+          {inner(accent.primary, palette.textPrimary)}
         </View>
       </TouchableOpacity>
     );
@@ -85,8 +91,7 @@ export default function GradientButton({
         style={[disabled && styles.disabled, style]}
       >
         <View style={[styles.btn, { borderColor: palette.borderHi, borderWidth: 1, backgroundColor: 'transparent' }]}>
-          {icon && <Icon name={icon} size={18} color={palette.textSecondary} style={styles.icon} />}
-          <Text style={[styles.text, { color: palette.textSecondary }]}>{label}</Text>
+          {inner(palette.textSecondary, palette.textSecondary)}
         </View>
       </TouchableOpacity>
     );
@@ -104,26 +109,36 @@ export default function GradientButton({
       style={[disabled && styles.disabled, style]}
     >
       <View style={[styles.btn, { borderColor: accent.red + '40', borderWidth: 1, backgroundColor: accent.redBg }]}>
-        {icon && <Icon name={icon} size={18} color={accent.red} style={styles.icon} />}
-        <Text style={[styles.text, { color: accent.red }]}>{label}</Text>
+        {inner(accent.red, accent.red)}
       </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
+  btnWrap: {
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
+  },
+  gradient: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 16,
+    minHeight: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   btn: {
     borderRadius: RADIUS.full,
     paddingHorizontal: SPACING.lg,
     paddingVertical: 16,
-    minHeight: 52,
+    minHeight: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
-    overflow: 'hidden',
   },
-  gradientFill: {
-    ...StyleSheet.absoluteFillObject,
+  inner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   glassBg: {
     borderWidth: 1,
