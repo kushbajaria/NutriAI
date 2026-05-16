@@ -627,3 +627,175 @@ exports.aiChat = onCall(
     return { message: assistantText };
   },
 );
+
+// ── WEEKLY INSIGHTS ────────────────────────────────────────────────
+
+function getISOWeekId(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNum = 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+exports.generateInsights = onCall(
+  { secrets: [anthropicApiKey], enforceAppCheck: false },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be signed in");
+    }
+
+    const uid = request.auth.uid;
+    const regenerate = request.data?.regenerate === true;
+    const weekId = getISOWeekId(new Date());
+
+    const insightRef = db
+      .collection("users").doc(uid)
+      .collection("insights").doc(weekId);
+
+    // Return cached if exists and not regenerating
+    if (!regenerate) {
+      const cached = await insightRef.get();
+      if (cached.exists) {
+        return cached.data();
+      }
+    }
+
+    // Rate limit: max 3 regenerations per week
+    if (regenerate) {
+      const insightsSnap = await db
+        .collection("users").doc(uid)
+        .collection("insights")
+        .where("weekId", "==", weekId)
+        .limit(3)
+        .get();
+      // Count how many times regenerated (check regenerateCount field)
+      const existing = await insightRef.get();
+      if (existing.exists && (existing.data().regenerateCount || 0) >= 3) {
+        throw new HttpsError(
+          "resource-exhausted",
+          "Maximum regenerations reached for this week.",
+        );
+      }
+    }
+
+    // Gather last 7 days of data
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const [mealsSnap, workoutsSnap, weightSnap] = await Promise.all([
+      db.collection("users").doc(uid).collection("meals")
+        .where("loggedAt", ">=", sevenDaysAgo)
+        .orderBy("loggedAt", "asc")
+        .get(),
+      db.collection("users").doc(uid).collection("workouts")
+        .where("completedAt", ">=", sevenDaysAgo)
+        .orderBy("completedAt", "asc")
+        .get(),
+      db.collection("users").doc(uid).collection("weightLog")
+        .where("timestamp", ">=", sevenDaysAgo.getTime())
+        .orderBy("timestamp", "asc")
+        .get(),
+    ]);
+
+    const meals = mealsSnap.docs.map((d) => d.data());
+    const workouts = workoutsSnap.docs.map((d) => d.data());
+    const weightEntries = weightSnap.docs.map((d) => d.data());
+
+    // Check minimum data threshold
+    if (meals.length < 3) {
+      return { notEnoughData: true, weekId };
+    }
+
+    // Read user profile for targets
+    const userDoc = await db.collection("users").doc(uid).get();
+    const profile = userDoc.exists ? userDoc.data() : {};
+    const goal = profile.goal || "Stay Healthy";
+    const calGoal = profile.calGoal || calculateTDEE(
+      profile.age, profile.height, profile.weight, profile.units, goal,
+    );
+    const macros = calculateMacroGoals(calGoal, goal);
+
+    // Aggregate daily data
+    const totalCals = meals.reduce((a, m) => a + (m.cal || 0), 0);
+    const totalProtein = meals.reduce((a, m) => a + (m.protein || 0), 0);
+    const totalCarbs = meals.reduce((a, m) => a + (m.carbs || 0), 0);
+    const totalFat = meals.reduce((a, m) => a + (m.fat || 0), 0);
+    const daysWithMeals = new Set(meals.map((m) => m.date)).size;
+    const avgCal = Math.round(totalCals / daysWithMeals);
+    const avgProtein = Math.round(totalProtein / daysWithMeals);
+
+    const dataContext = `
+User Goal: ${goal}
+Daily Targets: ${calGoal} kcal, ${macros.protein}g protein, ${macros.carbs}g carbs, ${macros.fat}g fat
+
+This Week Summary (${daysWithMeals} days with meals logged):
+- Total meals logged: ${meals.length}
+- Average daily calories: ${avgCal} kcal (target: ${calGoal})
+- Average daily protein: ${avgProtein}g (target: ${macros.protein}g)
+- Total carbs consumed: ${totalCarbs}g, Total fat: ${totalFat}g
+- Workouts completed: ${workouts.length}
+- Workout types: ${[...new Set(workouts.map((w) => w.type))].join(", ") || "None"}
+${weightEntries.length >= 2
+  ? `- Weight change: ${(weightEntries[weightEntries.length - 1].value - weightEntries[0].value).toFixed(1)} ${weightEntries[0].unit || "lbs"}`
+  : "- No weight data this week"}
+`.trim();
+
+    // Call Claude for structured insights
+    const Anthropic = require("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey: anthropicApiKey.value() });
+
+    let insights;
+    try {
+      const response = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 512,
+        system: `You are a nutrition analytics engine. Analyze the user's weekly data and return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+{
+  "weekSummary": "1-2 sentence overview of the week",
+  "wentWell": ["item1", "item2", "item3"],
+  "toImprove": ["item1", "item2"],
+  "tip": "One specific actionable tip for next week",
+  "calorieAdherence": <number 0-100>,
+  "proteinAdherence": <number 0-100>
+}
+Be encouraging but honest. Reference specific numbers from the data.`,
+        messages: [{ role: "user", content: dataContext }],
+      });
+
+      let text = response.content[0].text.trim();
+      // Strip markdown code fences if present
+      if (text.startsWith("```")) {
+        text = text.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+      }
+      insights = JSON.parse(text);
+    } catch (err) {
+      console.error("[Insights] Claude API or parse error:", err);
+      // Fallback insights
+      insights = {
+        weekSummary: `You logged ${meals.length} meals across ${daysWithMeals} days this week.`,
+        wentWell: ["Consistent meal tracking", "Staying active with your goals"],
+        toImprove: ["Try to log meals every day for better insights"],
+        tip: "Consistency is key — even imperfect tracking helps you stay aware.",
+        calorieAdherence: Math.min(100, Math.round((avgCal / calGoal) * 100)),
+        proteinAdherence: Math.min(100, Math.round((avgProtein / macros.protein) * 100)),
+      };
+    }
+
+    // Store in Firestore
+    const insightDoc = {
+      ...insights,
+      weekId,
+      generatedAt: FieldValue.serverTimestamp(),
+      regenerateCount: regenerate ? FieldValue.increment(1) : 1,
+      notEnoughData: false,
+    };
+
+    await insightRef.set(insightDoc, { merge: true });
+
+    return { ...insights, weekId, notEnoughData: false };
+  },
+);
