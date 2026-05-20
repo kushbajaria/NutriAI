@@ -38,12 +38,14 @@ export default function GlassCard({ level = 1, onPress, style, children }) {
 
   const content = (
     <View style={cardStyle}>
-      <BlurView
-        style={StyleSheet.absoluteFill}
-        blurType={mode === 'dark' ? 'dark' : 'light'}
-        blurAmount={blurAmount}
-        reducedTransparencyFallbackColor={palette.bg1}
-      />
+      <View style={styles.blurWrap}>
+        <BlurView
+          style={StyleSheet.absoluteFill}
+          blurType={mode === 'dark' ? 'dark' : 'light'}
+          blurAmount={blurAmount}
+          reducedTransparencyFallbackColor={palette.bg1}
+        />
+      </View>
       <View style={styles.inner}>
         {children}
       </View>
@@ -65,6 +67,10 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: RADIUS.lg,
     borderWidth: 1,
+  },
+  blurWrap: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: RADIUS.lg,
     overflow: 'hidden',
   },
   inner: {

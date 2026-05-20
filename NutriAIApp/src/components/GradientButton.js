@@ -117,21 +117,21 @@ export default function GradientButton({
 
 const styles = StyleSheet.create({
   btnWrap: {
-    borderRadius: RADIUS.full,
+    borderRadius: 28,
     overflow: 'hidden',
   },
   gradient: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: 16,
-    minHeight: 54,
+    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
   btn: {
-    borderRadius: RADIUS.full,
+    borderRadius: 28,
     paddingHorizontal: SPACING.lg,
     paddingVertical: 16,
-    minHeight: 54,
+    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
