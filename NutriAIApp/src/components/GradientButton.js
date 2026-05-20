@@ -2,21 +2,12 @@ import React from 'react';
 import { Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
-import { RADIUS, SPACING, SHADOW } from '../constants/theme';
+import { SPACING, SHADOW } from '../constants/theme';
 import Icon from './Icon';
 
-/**
- * GradientButton — primary CTA with gradient fill, or glass secondary variant.
- *
- * Props:
- *   label     — button text
- *   onPress   — press handler
- *   variant   — 'primary' (gradient), 'secondary' (glass), 'ghost', 'danger'
- *   gradient  — array of color stops (default: GRADIENTS.primary)
- *   icon      — optional Ionicons name (rendered left of label)
- *   disabled  — disables button
- *   style     — additional styles
- */
+const BTN_RADIUS = 28;
+const BTN_HEIGHT = 56;
+
 export default function GradientButton({
   label,
   onPress,
@@ -26,15 +17,8 @@ export default function GradientButton({
   disabled,
   style,
 }) {
-  const { mode, palette, gradients, accent } = useTheme();
+  const { palette, gradients, accent } = useTheme();
   const colors = gradient || gradients.primary;
-
-  const inner = (iconColor, textColor) => (
-    <View style={styles.inner}>
-      {icon && <Icon name={icon} size={18} color={iconColor} style={styles.icon} />}
-      <Text style={[styles.text, { color: textColor }]}>{label}</Text>
-    </View>
-  );
 
   if (variant === 'primary') {
     return (
@@ -47,15 +31,15 @@ export default function GradientButton({
         accessibilityState={{ disabled: !!disabled }}
         style={[disabled && styles.disabled, style]}
       >
-        <View style={[styles.btnWrap, SHADOW.accent]}>
+        <View style={[styles.btn, { backgroundColor: colors[0] }, SHADOW.accent]}>
           <LinearGradient
             colors={colors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={styles.gradient}
-          >
-            {inner(palette.textInverse, palette.textInverse)}
-          </LinearGradient>
+            style={[StyleSheet.absoluteFill, { borderRadius: BTN_RADIUS }]}
+          />
+          {icon && <Icon name={icon} size={18} color={palette.textInverse} style={styles.icon} />}
+          <Text style={[styles.text, { color: palette.textInverse }]}>{label}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -73,7 +57,8 @@ export default function GradientButton({
         style={[disabled && styles.disabled, style]}
       >
         <View style={[styles.btn, styles.glassBg, { borderColor: palette.glass2Border, backgroundColor: palette.glass2Bg }]}>
-          {inner(accent.primary, palette.textPrimary)}
+          {icon && <Icon name={icon} size={18} color={accent.primary} style={styles.icon} />}
+          <Text style={[styles.text, { color: palette.textPrimary }]}>{label}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -91,7 +76,8 @@ export default function GradientButton({
         style={[disabled && styles.disabled, style]}
       >
         <View style={[styles.btn, { borderColor: palette.borderHi, borderWidth: 1, backgroundColor: 'transparent' }]}>
-          {inner(palette.textSecondary, palette.textSecondary)}
+          {icon && <Icon name={icon} size={18} color={palette.textSecondary} style={styles.icon} />}
+          <Text style={[styles.text, { color: palette.textSecondary }]}>{label}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -109,33 +95,18 @@ export default function GradientButton({
       style={[disabled && styles.disabled, style]}
     >
       <View style={[styles.btn, { borderColor: accent.red + '40', borderWidth: 1, backgroundColor: accent.redBg }]}>
-        {inner(accent.red, accent.red)}
+        {icon && <Icon name={icon} size={18} color={accent.red} style={styles.icon} />}
+        <Text style={[styles.text, { color: accent.red }]}>{label}</Text>
       </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  btnWrap: {
-    borderRadius: 28,
-    overflow: 'hidden',
-  },
-  gradient: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 16,
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   btn: {
-    borderRadius: 28,
+    height: BTN_HEIGHT,
+    borderRadius: BTN_RADIUS,
     paddingHorizontal: SPACING.lg,
-    paddingVertical: 16,
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  inner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
